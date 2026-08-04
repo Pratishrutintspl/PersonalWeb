@@ -23,7 +23,19 @@ const deleteDailyInfoSuccess = "Daily info deleted successfully";
 const delayedTasks = "Delayed tasks checked successfully";
 const dashboardFetched = "Dashboard fetched successfully";
 
+
+
+
+
+
+
+
+
+const categoryCreated = "Category created successfully";
+const categoryFetched = "Category fetched successfully";
+const updateCategory = "Category updated successfully";
 module.exports = {
+  categoryFetched,
   userCreated,
   errorCreatingUser,
   alreadyExist,
@@ -47,4 +59,6 @@ module.exports = {
   deleteDailyInfoSuccess,
   delayedTasks,
   dashboardFetched,
+  categoryCreated,
+  updateCategory
 };
