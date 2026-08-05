@@ -63,7 +63,7 @@ const todoList = async (userId) => {
   return await todoModel.find({ userId }).sort({ createdAt: -1 });
 };
 
-const todoListDate = async (userId, date, page = 1, limit = 5,search = "") => {
+const todoListDate = async (userId, date, page = 1, limit = 10,search = "") => {
   if (!userId) {
     throw new Error("User not found");
   }
