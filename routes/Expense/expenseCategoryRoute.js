@@ -1,5 +1,5 @@
-const expenseController = require("../controller/expenseCategoryController");
-const middleware = require("../middleware/authmiddleware");
+const expenseController = require("../../controller/Expense/expenseCategoryController");
+const middleware = require("../../middleware/authmiddleware");
 const route = require("express").Router();
 
 route.post(

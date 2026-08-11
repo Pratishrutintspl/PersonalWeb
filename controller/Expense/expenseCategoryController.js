@@ -1,6 +1,6 @@
-const expenseCategoryService = require("../services/expenseCategoryService");
-const response = require("../utils/response");
-const message = require("../constants/message");
+const expenseCategoryService = require("../../services/Expense/expenseCategoryService");
+const response = require("../../utils/response");
+const message = require("../../constants/message");
 
 const createCategory = async (req, res) => {
   try {
@@ -25,10 +25,14 @@ const createCategory = async (req, res) => {
 
 const categoryList = async (req, res) => {
   try {
-    // console.log("req.user =", req.user);
+    const { search = "", page = 1, limit = 10 } = req.query;
     const userId = req.user.userId;
     console.log(userId);
-    const data = await expenseCategoryService.categoryList(userId);
+    const data = await expenseCategoryService.categoryList(userId, {
+      search,
+      page,
+      limit,
+    });
     console.log("data", data);
     return response.SucessResponse(res, 200, message.categoryFetched, data);
   } catch (error) {
@@ -59,13 +63,22 @@ const updateCategory = async (req, res) => {
     const userId = req.user.userId;
 
     const { id } = req.params;
-const categoryData = req.body
+    const categoryData = req.body;
     console.log("categoryId =", id);
- console.log("categoryData =", categoryData);
-    const updateCategoryData = await expenseCategoryService.UpdateCategory(userId, id,categoryData);
+    console.log("categoryData =", categoryData);
+    const updateCategoryData = await expenseCategoryService.UpdateCategory(
+      userId,
+      id,
+      categoryData,
+    );
     console.log("data =", updateCategoryData);
 
-    return response.SucessResponse(res, 200, message.updateCategory, updateCategoryData);
+    return response.SucessResponse(
+      res,
+      200,
+      message.updateCategory,
+      updateCategoryData,
+    );
   } catch (error) {
     console.log(error);
     return response.errorResponse(res, 500, error.message, null);

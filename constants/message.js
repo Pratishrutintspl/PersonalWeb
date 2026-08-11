@@ -23,18 +23,27 @@ const deleteDailyInfoSuccess = "Daily info deleted successfully";
 const delayedTasks = "Delayed tasks checked successfully";
 const dashboardFetched = "Dashboard fetched successfully";
 
+const bankConnected = "Bank account connected successfully";
 
-
-
-
-
-
-
+const bankFetched = "Bank accounts fetched successfully";
+const bankUpdated = "Bank account updated successfully";
+const bankDisconnect = "Bank account disconnected successfully";
+const bankDeleted = "Bank account deleted successfully";
 
 const categoryCreated = "Category created successfully";
 const categoryFetched = "Category fetched successfully";
 const updateCategory = "Category updated successfully";
+const bankTranFetch = "Bank transactions fetched successfully";
+const expenseFetched = "Expenses fetched successfully";
+
 module.exports = {
+  expenseFetched,
+  bankTranFetch,
+  bankDeleted,
+  bankDisconnect,
+  bankUpdated,
+  bankFetched,
+  bankConnected,
   categoryFetched,
   userCreated,
   errorCreatingUser,
@@ -60,5 +69,5 @@ module.exports = {
   delayedTasks,
   dashboardFetched,
   categoryCreated,
-  updateCategory
+  updateCategory,
 };
