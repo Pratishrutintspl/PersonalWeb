@@ -1,7 +1,7 @@
-const expenseCategory = require("../models/expenseCategory");
-const activitylogs = require("../services/activityService");
-const activityServicActions = require("../constants/activityActions");
-const User = require("../models/user");
+const expenseCategory = require("../../models/Expense/expenseCategory");
+const activitylogs = require("../activityService");
+const activityServicActions = require("../../constants/activityActions");
+const User = require("../../models/user");
 
 const addCategory = async (categoryData, userId) => {
   // console.log("User ID:", userId);
@@ -40,32 +40,121 @@ const addCategory = async (categoryData, userId) => {
   return await expenseCategory.create(payload);
 };
 
-const categoryList = async (userId) => {
+// const categoryList = async (userId) => {
+//   console.log("User ID:", userId);
+
+//   if (!userId) {
+//     throw new Error("User not Found");
+//   }
+
+//   const categoryList = await expenseCategory
+//     .find({
+//       createdBy: userId,
+//       isDeleted: false,
+//     })
+//     .sort({ categoryName: 1 });
+//   console.log("categoryList", categoryList);
+//   const user = await User.findById(userId);
+//   console.log("user", user);
+//   if (user) {
+//     await activitylogs.createActivity({
+//       userId,
+//       action: activityServicActions.GET_CATEGORY,
+//       module: "CATEGORY INFO",
+//       description: `${user.name} fetched categories`,
+//     });
+//   }
+
+//   return categoryList;
+// };
+
+const categoryList = async (
+  userId,
+  {
+    search = "",
+    page = 1,
+    limit = 10,
+  } = {}
+) => {
   console.log("User ID:", userId);
 
   if (!userId) {
     throw new Error("User not Found");
   }
 
-  const categoryList = await expenseCategory
-    .find({
-      createdBy: userId,
-      isDeleted: false,
-    })
-    .sort({ categoryName: 1 });
-  console.log("categoryList", categoryList);
+  const currentPage = Math.max(Number(page) || 1, 1);
+  const pageSize = Math.max(Number(limit) || 10, 1);
+  const skip = (currentPage - 1) * pageSize;
+
+  const filter = {
+    createdBy: userId,
+    isDeleted: false,
+  };
+
+  /*
+   * Search by category name / description
+   */
+  if (search?.trim()) {
+    const searchText = search.trim();
+
+    filter.$or = [
+      {
+        categoryName: {
+          $regex: searchText,
+          $options: "i",
+        },
+      },
+      {
+        description: {
+          $regex: searchText,
+          $options: "i",
+        },
+      },
+    ];
+  }
+
+  const [categories, totalRecords] = await Promise.all([
+    expenseCategory
+      .find(filter)
+      .sort({ categoryName: 1 })
+      .skip(skip)
+      .limit(pageSize),
+
+    expenseCategory.countDocuments(filter),
+  ]);
+
+  const totalPages = Math.ceil(
+    totalRecords / pageSize
+  );
+
   const user = await User.findById(userId);
-  console.log("user", user);
+
   if (user) {
     await activitylogs.createActivity({
       userId,
-      action: activityServicActions.GET_CATEGORY,
+      action:
+        activityServicActions.GET_CATEGORY,
       module: "CATEGORY INFO",
       description: `${user.name} fetched categories`,
     });
   }
 
-  return categoryList;
+  return {
+    data: categories,
+
+    pagination: {
+      page: currentPage,
+      limit: pageSize,
+      totalRecords,
+      totalPages,
+      hasNextPage:
+        currentPage < totalPages,
+      hasPreviousPage:
+        currentPage > 1,
+    },
+
+    search: search?.trim() || "",
+  };
 };
 
 const categoryById = async (userId, categoryId) => {
@@ -99,8 +188,8 @@ const UpdateCategory = async (userId, categoryId, categoryData) => {
   if (!userId) {
     throw new Error("User not found");
   }
-console.log(categoryData)
-console.log(categoryId)
+  console.log(categoryData);
+  console.log(categoryId);
   const existingCategory = await expenseCategory.findOne({
     _id: categoryId,
     createdBy: userId,
@@ -138,7 +227,7 @@ console.log(categoryId)
     {
       new: true,
       runValidators: true,
-    }
+    },
   );
 
   const user = await User.findById(userId);
@@ -155,11 +244,9 @@ console.log(categoryId)
   return updatedCategory;
 };
 
-
-
 module.exports = {
   addCategory,
   categoryList,
   categoryById,
-  UpdateCategory
+  UpdateCategory,
 };
