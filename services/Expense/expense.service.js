@@ -53,7 +53,14 @@ const createExpense = async ({
     amount,
     expenseDate,
     description,
+    source = "MANUAL",
+    bankTransactionId,
+    paymentMethod,
   } = data;
+
+  // =========================================
+  // CATEGORY VALIDATION
+  // =========================================
 
   if (!categoryId) {
     const error = new Error("Category is required");
@@ -61,30 +68,77 @@ const createExpense = async ({
     throw error;
   }
 
+  // =========================================
+  // AMOUNT VALIDATION
+  // =========================================
+
   if (
     amount === undefined ||
     amount === null ||
     Number(amount) <= 0
   ) {
     const error = new Error(
-      "Amount must be greater than 0"
+      "Amount must be greater than 0",
     );
+
     error.statusCode = 400;
     throw error;
   }
+
+  // =========================================
+  // DATE VALIDATION
+  // =========================================
 
   if (!expenseDate) {
     const error = new Error(
-      "Expense date is required"
+      "Expense date is required",
     );
+
     error.statusCode = 400;
     throw error;
   }
 
+  // =========================================
+  // SOURCE VALIDATION
+  // =========================================
+
+  if (!["MANUAL", "BANK"].includes(source)) {
+    const error = new Error(
+      "Invalid expense source",
+    );
+
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // =========================================
+  // BANK VALIDATION
+  // =========================================
+
+  if (
+    source === "BANK" &&
+    !bankTransactionId
+  ) {
+    const error = new Error(
+      "Bank transaction is required",
+    );
+
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // =========================================
+  // CATEGORY CHECK
+  // =========================================
+
   await validateCategory(
     userId,
-    categoryId
+    categoryId,
   );
+
+  // =========================================
+  // CREATE EXPENSE
+  // =========================================
 
   const expense = await Expense.create({
     userId,
@@ -98,12 +152,20 @@ const createExpense = async ({
     description:
       description?.trim() || "",
 
-    /*
-     * User-created expense.
-     */
-    source: "MANUAL",
+    // IMPORTANT
+    source,
 
-    bankTransactionId: null,
+    // Only save for BANK
+    bankTransactionId:
+      source === "BANK"
+        ? bankTransactionId
+        : null,
+
+    // Only save paymentMethod for MANUAL
+    paymentMethod:
+      source === "MANUAL"
+        ? paymentMethod || null
+        : null,
   });
 
   return expense;
