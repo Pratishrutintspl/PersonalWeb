@@ -170,29 +170,47 @@ const checkDelayedTasks = async () => {
 
 const IST_OFFSET = 5.5 * 60 * 60 * 1000;
 
+
+
+
+
+// ============================================
+// IST DATE HELPERS
+// ============================================
+
 const getISTDayRange = () => {
   const now = new Date();
 
-  // Shift current instant into IST calendar
-  const istNow = new Date(now.getTime() + IST_OFFSET);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
 
-  const year = istNow.getUTCFullYear();
-  const month = istNow.getUTCMonth();
-  const day = istNow.getUTCDate();
+  const values = {};
 
-  // Start of today in IST, represented as UTC
+  for (const part of parts) {
+    if (part.type !== "literal") {
+      values[part.type] = part.value;
+    }
+  }
+
+  // Example if today is 17 Aug 2026:
+  // 17 Aug 2026 00:00 IST
+  // = 16 Aug 2026 18:30 UTC
   const today = new Date(
-    Date.UTC(year, month, day) - IST_OFFSET
+    `${values.year}-${values.month}-${values.day}T00:00:00.000+05:30`
   );
 
-  // Start of tomorrow in IST, represented as UTC
+  // India has no daylight-saving changes,
+  // so adding 24 hours is safe here.
   const tomorrow = new Date(
     today.getTime() + 24 * 60 * 60 * 1000
   );
 
-  // Start of day after tomorrow
   const dayAfterTomorrow = new Date(
-    tomorrow.getTime() + 24 * 60 * 60 * 1000
+    today.getTime() + 2 * 24 * 60 * 60 * 1000
   );
 
   return {
@@ -202,13 +220,24 @@ const getISTDayRange = () => {
   };
 };
 
+
 const getISTString = (date) => {
   return new Date(date).toLocaleString("en-IN", {
     timeZone: "Asia/Kolkata",
-    dateStyle: "full",
-    timeStyle: "long",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
   });
 };
+
+
+// ============================================
+// AUTO CREATE DAILY TODOS
+// ============================================
 
 const autoCreateDailyTodos = async () => {
   try {
@@ -220,18 +249,41 @@ const autoCreateDailyTodos = async () => {
       dayAfterTomorrow,
     } = getISTDayRange();
 
-    console.log("Today UTC:", today.toISOString());
-    console.log("Today IST:", getISTString(today));
+    console.log(
+      "Today UTC:",
+      today.toISOString()
+    );
 
-    console.log("Tomorrow UTC:", tomorrow.toISOString());
-    console.log("Tomorrow IST:", getISTString(tomorrow));
+    console.log(
+      "Today IST:",
+      getISTString(today)
+    );
+
+    console.log(
+      "Tomorrow UTC:",
+      tomorrow.toISOString()
+    );
+
+    console.log(
+      "Tomorrow IST:",
+      getISTString(tomorrow)
+    );
 
     console.log(
       "Day After Tomorrow UTC:",
       dayAfterTomorrow.toISOString()
     );
 
-    // Find the latest non-deleted todo for each user + title
+    console.log(
+      "Day After Tomorrow IST:",
+      getISTString(dayAfterTomorrow)
+    );
+
+
+    // ============================================
+    // GET LATEST TODO FOR EACH USER + TITLE
+    // ============================================
+
     const recurringTodos = await Todo.aggregate([
       {
         $match: {
@@ -259,7 +311,8 @@ const autoCreateDailyTodos = async () => {
         },
       },
 
-      // Only continue recurrence if latest todo still has auto-add enabled
+      // Recurrence should continue only when
+      // latest todo has auto-add enabled
       {
         $match: {
           "todo.isAutoAddEveryday": true,
@@ -267,68 +320,110 @@ const autoCreateDailyTodos = async () => {
       },
     ]);
 
+
     console.log(
       `Recurring todos found: ${recurringTodos.length}`
     );
+
+
+    // ============================================
+    // LOOP THROUGH RECURRING TODOS
+    // ============================================
 
     for (const item of recurringTodos) {
       const todo = item.todo;
 
       try {
         console.log("----------------------------------");
-        console.log(`Checking: ${todo.title}`);
+
+        console.log(
+          `Checking: ${todo.title}`
+        );
+
+        console.log(
+          "Source todo date UTC:",
+          new Date(todo.date).toISOString()
+        );
 
         console.log(
           "Source todo date IST:",
           getISTString(todo.date)
         );
 
-        // Check if same todo already exists tomorrow
+
+        // ============================================
+        // CHECK IF TODO ALREADY EXISTS TODAY
+        // ============================================
+
         const alreadyExists = await Todo.findOne({
           userId: todo.userId,
+
           title: todo.title,
+
           isDeleted: false,
 
+          // TODAY IST range
           date: {
-            $gte: tomorrow,
-            $lt: dayAfterTomorrow,
+            $gte: today,
+            $lt: tomorrow,
           },
         }).lean();
 
+
         if (alreadyExists) {
           console.log(
-            `Already exists tomorrow -> ${todo.title}`
+            `Already exists today -> ${todo.title}`
           );
 
           console.log(
             "Existing date UTC:",
-            new Date(alreadyExists.date).toISOString()
+            new Date(
+              alreadyExists.date
+            ).toISOString()
           );
 
           console.log(
             "Existing date IST:",
-            getISTString(alreadyExists.date)
+            getISTString(
+              alreadyExists.date
+            )
           );
 
           continue;
         }
 
+
+        // ============================================
+        // CREATE TODO FOR TODAY
+        // ============================================
+
         const createdTodo = await Todo.create({
           userId: todo.userId,
 
           title: todo.title,
+
           description: todo.description,
 
-          // Tomorrow 00:00 IST
-          date: tomorrow,
+          // IMPORTANT:
+          // Create for TODAY, not tomorrow
+          //
+          // Example:
+          // Aug 17 00:00 IST
+          // MongoDB stores:
+          // Aug 16 18:30 UTC
+          date: today,
 
           scheduledTime: todo.scheduledTime,
 
           taskType: todo.taskType,
+
           targetvalue: todo.targetvalue,
+
           unit: todo.unit,
+
           priority: todo.priority,
 
+          // Reset daily values
           actualValue: 0,
 
           status: "PENDING",
@@ -336,26 +431,35 @@ const autoCreateDailyTodos = async () => {
           completedAt: null,
 
           delayReason: "",
+
           delayReasonSubmittedAt: null,
 
           remarks: "",
 
           isEdited: false,
+
           editedAt: null,
 
           isDeleted: false,
+
           deletedAt: null,
 
           notificationSent: false,
+
           isDelayed: false,
 
           completionPercentage: 0,
 
           // Continue daily recurrence
           isAutoAddEveryday: true,
+
+          cancelReason: "",
         });
 
-        console.log(`Created -> ${createdTodo.title}`);
+
+        console.log(
+          `Created -> ${createdTodo.title}`
+        );
 
         console.log(
           "Created date UTC:",
@@ -364,8 +468,11 @@ const autoCreateDailyTodos = async () => {
 
         console.log(
           "Created date IST:",
-          getISTString(createdTodo.date)
+          getISTString(
+            createdTodo.date
+          )
         );
+
       } catch (todoError) {
         console.error(
           `Failed creating todo -> ${todo.title}`,
@@ -374,7 +481,11 @@ const autoCreateDailyTodos = async () => {
       }
     }
 
-    console.log("========== AUTO TODO COMPLETED ==========");
+
+    console.log(
+      "========== AUTO TODO COMPLETED =========="
+    );
+
   } catch (error) {
     console.error(
       "AUTO TODO ERROR:",
@@ -382,6 +493,9 @@ const autoCreateDailyTodos = async () => {
     );
   }
 };
+
+
+
 
 module.exports = {
   checkDelayedTasks,

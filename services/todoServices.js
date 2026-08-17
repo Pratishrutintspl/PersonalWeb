@@ -159,11 +159,9 @@ const todoListDate = async (
     throw new Error("User not found");
   }
 
-  const startDate = new Date(date);
-  startDate.setHours(0, 0, 0, 0);
-
-  const endDate = new Date(date);
-  endDate.setHours(23, 59, 59, 999);
+  // Explicit IST timezone
+  const startDate = new Date(`${date}T00:00:00.000+05:30`);
+  const endDate = new Date(`${date}T23:59:59.999+05:30`);
 
   const query = {
     userId,
@@ -187,13 +185,9 @@ const todoListDate = async (
       { unit: { $regex: search, $options: "i" } },
     ];
   }
-  // Fetch all todos for that date
+
   const todos = await todoModel.find(query);
 
-  // Sort:
-  // 1. Pending first
-  // 2. Completed last
-  // 3. Time wise
   todos.sort((a, b) => {
     if (a.status !== b.status) {
       if (a.status === "PENDING") return -1;
@@ -204,9 +198,7 @@ const todoListDate = async (
   });
 
   const totalRecords = todos.length;
-
   const skip = (page - 1) * limit;
-
   const todoList = todos.slice(skip, skip + Number(limit));
 
   const user = await User.findById(userId);
@@ -517,7 +509,10 @@ const getDashboard = async (userId, date) => {
       isDelayed: true,
     }),
   ]);
-
+console.log("Total tasks =", totalTasks);
+console.log("Completed tasks =", completedTasks);
+console.log("Pending tasks =", pendingTasks);
+console.log("Delayed tasks =", delayedTasks);
   const completionRate =
     totalTasks > 0
       ? Math.round((completedTasks / totalTasks) * 100)
