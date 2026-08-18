@@ -605,18 +605,44 @@ const todoCountByDate = async (userId) => {
     throw new Error("User not found");
   }
 
+  const objectId = new mongoose.Types.ObjectId(userId);
+
   return await todoModel.aggregate([
     {
       $match: {
-        userId: new mongoose.Types.ObjectId(userId),
+        userId: objectId,
         isDeleted: false,
       },
     },
 
     {
-      $group: {
-        _id: "$date",
+      $addFields: {
+        normalizedDate: {
+          $cond: [
+            {
+              $eq: [
+                { $type: "$date" },
+                "date",
+              ],
+            },
 
+            {
+              $dateToString: {
+                format: "%Y-%m-%d",
+                date: "$date",
+                timezone: "Asia/Kolkata",
+              },
+            },
+
+            "$date",
+          ],
+        },
+      },
+    },
+
+    {
+      $group: {
+        _id: "$normalizedDate",
         count: {
           $sum: 1,
         },
