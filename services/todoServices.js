@@ -4,111 +4,126 @@ const activityServicActions = require("../constants/activityActions");
 const User = require("../models/user");
 const mongoose = require("mongoose");
 
-// const createTodo = async (tododata, userId) => {
-//   if (!userId) {
-//     throw new Error("User not found");
-//   }
+const validateDateString = (date) => {
+  if (
+    typeof date !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(date)
+  ) {
+    throw new Error("Date must be YYYY-MM-DD");
+  }
 
-//   let isDelayed = false;
-//   let notificationSent = false;
+  return date;
+};
 
-//   if (tododata.date && tododata.scheduledTime) {
-//     const taskDate = new Date(tododata.date);
 
-//     const [hours, minutes] = tododata.scheduledTime.split(":").map(Number);
+const combineDateAndTimeIST = (
+  date,
+  scheduledTime
+) => {
+  validateDateString(date);
 
-//     taskDate.setHours(hours, minutes, 0, 0);
+  if (
+    typeof scheduledTime !== "string" ||
+    !/^([01]\d|2[0-3]):([0-5]\d)$/.test(
+      scheduledTime
+    )
+  ) {
+    throw new Error(
+      "Scheduled time must be HH:mm"
+    );
+  }
 
-//     const now = new Date();
-
-//     if (taskDate <= now) {
-//       isDelayed = true;
-//       notificationSent = true;
-//     }
-//   }
-
-//   const todo = await todoModel.create({
-//     ...tododata,
-
-//     userId,
-
-//     status: "PENDING",
-
-//     isDelayed,
-//     notificationSent,
-
-//     completedAt: null,
-//     delayReason: "",
-//     delayReasonSubmittedAt: null,
-
-//     actualValue: tododata.actualValue || 0,
-//     completionPercentage: 0,
-
-//     isAutoAddEveryday: tododata.isAutoAddEveryday || false,
-//   });
-
-//   const user = await User.findById(userId);
-
-//   await activitylogs.createActivity({
-//     userId,
-//     action: activityServicActions.CREATE_TASK,
-//     module: "TODO",
-//     description: `${user.email} created a todo task`,
-//   });
-
-//   return todo;
-// };
-
-const combineDateAndTimeIST = (date, scheduledTime) => {
-  const IST_OFFSET = 5.5 * 60 * 60 * 1000;
-
-  const baseDate = new Date(date);
-
-  // Convert instant to IST calendar representation
-  const istDate = new Date(baseDate.getTime() + IST_OFFSET);
-
-  const year = istDate.getUTCFullYear();
-  const month = istDate.getUTCMonth();
-  const day = istDate.getUTCDate();
-
-  const [hours, minutes] = scheduledTime.split(":").map(Number);
-
-  // Build IST datetime and convert it back to UTC
+  // Only here do we convert date+time into
+  // an actual moment for comparison.
   return new Date(
-    Date.UTC(year, month, day, hours, minutes, 0, 0) - IST_OFFSET,
+    `${date}T${scheduledTime}:00.000+05:30`
   );
 };
 
-const createTodo = async (tododata, userId) => {
+
+const getTodayIST = () => {
+  const parts =
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+
+  const values = {};
+
+  for (const part of parts) {
+    if (part.type !== "literal") {
+      values[part.type] = part.value;
+    }
+  }
+
+  return `${values.year}-${values.month}-${values.day}`;
+};
+
+
+const addDaysToDate = (dateString, days) => {
+  validateDateString(dateString);
+
+  const [year, month, day] =
+    dateString.split("-").map(Number);
+
+  const date = new Date(
+    Date.UTC(year, month - 1, day)
+  );
+
+  date.setUTCDate(
+    date.getUTCDate() + days
+  );
+
+  const y = date.getUTCFullYear();
+
+  const m = String(
+    date.getUTCMonth() + 1
+  ).padStart(2, "0");
+
+  const d = String(
+    date.getUTCDate()
+  ).padStart(2, "0");
+
+  return `${y}-${m}-${d}`;
+};
+
+const normalizeTodoDateIST = (dateInput) => {
+  const dateString = getISTDateString(dateInput);
+
+  return new Date(
+    `${dateString}T00:00:00.000+05:30`
+  );
+};
+
+const createTodo = async (
+  tododata,
+  userId
+) => {
   if (!userId) {
     throw new Error("User not found");
   }
 
-  let isDelayed = false;
-  let notificationSent = false;
+  if (!tododata.date) {
+    throw new Error("Todo date is required");
+  }
 
-  if (tododata.date && tododata.scheduledTime) {
-    const taskDateTime = combineDateAndTimeIST(
-      tododata.date,
-      tododata.scheduledTime,
-    );
+  validateDateString(tododata.date);
+
+  let isDelayed = false;
+
+  if (tododata.scheduledTime) {
+    const taskDateTime =
+      combineDateAndTimeIST(
+        tododata.date,
+        tododata.scheduledTime
+      );
 
     const now = new Date();
 
-    console.log("Todo date:", tododata.date);
-    console.log("Scheduled time:", tododata.scheduledTime);
-    console.log("Scheduled datetime UTC:", taskDateTime.toISOString());
-    console.log(
-      "Scheduled datetime IST:",
-      taskDateTime.toLocaleString("en-IN", {
-        timeZone: "Asia/Kolkata",
-      }),
-    );
-
-    if (taskDateTime <= now) {
-      isDelayed = true;
-      notificationSent = true;
-    }
+    isDelayed =
+      taskDateTime.getTime() <= now.getTime();
   }
 
   const todo = await todoModel.create({
@@ -116,33 +131,51 @@ const createTodo = async (tododata, userId) => {
 
     userId,
 
+    // Store exactly what frontend sends
+    // "2026-08-17"
+    date: tododata.date,
+
     status: "PENDING",
 
     isDelayed,
-    notificationSent,
+
+    // Only set true after notification
+    // is actually sent
+    notificationSent: false,
 
     completedAt: null,
+
     delayReason: "",
+
     delayReasonSubmittedAt: null,
 
-    actualValue: tododata.actualValue || 0,
+    actualValue:
+      tododata.actualValue ?? 0,
+
     completionPercentage: 0,
 
-    isAutoAddEveryday: tododata.isAutoAddEveryday || false,
+    isAutoAddEveryday:
+      tododata.isAutoAddEveryday ?? false,
   });
 
   const user = await User.findById(userId);
 
-  await activitylogs.createActivity({
-    userId,
-    action: activityServicActions.CREATE_TASK,
-    module: "TODO",
-    description: `${user.email} created a todo task`,
-  });
+  if (user) {
+    await activitylogs.createActivity({
+      userId,
+
+      action:
+        activityServicActions.CREATE_TASK,
+
+      module: "TODO",
+
+      description:
+        `${user.email} created a todo task`,
+    });
+  }
 
   return todo;
 };
-
 const todoList = async (userId) => {
   console.log("userrrrrrrID=", userId);
   return await todoModel.find({ userId }).sort({ createdAt: -1 });
@@ -153,80 +186,153 @@ const todoListDate = async (
   date,
   page = 1,
   limit = 10,
-  search = "",
+  search = ""
 ) => {
   if (!userId) {
     throw new Error("User not found");
   }
 
-  // Explicit IST timezone
-  const startDate = new Date(`${date}T00:00:00.000+05:30`);
-  const endDate = new Date(`${date}T23:59:59.999+05:30`);
+  validateDateString(date);
 
   const query = {
     userId,
     isDeleted: false,
-    date: {
-      $gte: startDate,
-      $lte: endDate,
-    },
+    date,
   };
 
   if (search && search.trim() !== "") {
     query.$or = [
-      { title: { $regex: search, $options: "i" } },
-      { description: { $regex: search, $options: "i" } },
-      { cancelReason: { $regex: search, $options: "i" } },
-      { remarks: { $regex: search, $options: "i" } },
-      { taskType: { $regex: search, $options: "i" } },
-      { priority: { $regex: search, $options: "i" } },
-      { status: { $regex: search, $options: "i" } },
-      { scheduledTime: { $regex: search, $options: "i" } },
-      { unit: { $regex: search, $options: "i" } },
+      {
+        title: {
+          $regex: search,
+          $options: "i",
+        },
+      },
+      {
+        description: {
+          $regex: search,
+          $options: "i",
+        },
+      },
+      {
+        cancelReason: {
+          $regex: search,
+          $options: "i",
+        },
+      },
+      {
+        remarks: {
+          $regex: search,
+          $options: "i",
+        },
+      },
+      {
+        taskType: {
+          $regex: search,
+          $options: "i",
+        },
+      },
+      {
+        priority: {
+          $regex: search,
+          $options: "i",
+        },
+      },
+      {
+        status: {
+          $regex: search,
+          $options: "i",
+        },
+      },
+      {
+        scheduledTime: {
+          $regex: search,
+          $options: "i",
+        },
+      },
+      {
+        unit: {
+          $regex: search,
+          $options: "i",
+        },
+      },
     ];
   }
 
-  const todos = await todoModel.find(query);
+  const todos =
+    await todoModel.find(query);
 
   todos.sort((a, b) => {
     if (a.status !== b.status) {
-      if (a.status === "PENDING") return -1;
-      if (b.status === "PENDING") return 1;
+      if (a.status === "PENDING") {
+        return -1;
+      }
+
+      if (b.status === "PENDING") {
+        return 1;
+      }
     }
 
-    return a.scheduledTime.localeCompare(b.scheduledTime);
+    return a.scheduledTime.localeCompare(
+      b.scheduledTime
+    );
   });
 
   const totalRecords = todos.length;
-  const skip = (page - 1) * limit;
-  const todoList = todos.slice(skip, skip + Number(limit));
 
-  const user = await User.findById(userId);
+  const skip =
+    (Number(page) - 1) * Number(limit);
+
+  const todoList = todos.slice(
+    skip,
+    skip + Number(limit)
+  );
+
+  const user =
+    await User.findById(userId);
 
   if (user) {
     await activitylogs.createActivity({
       userId,
-      action: activityServicActions.DATE_TASK,
+
+      action:
+        activityServicActions.DATE_TASK,
+
       module: "DAILY INFO",
-      description: `${user.name} searched "${search}" for ${date}`,
+
+      description:
+        `${user.name} searched "${search}" for ${date}`,
     });
   }
 
   return {
     todoList,
+
     pagination: {
       page: Number(page),
       limit: Number(limit),
       totalRecords,
-      totalPages: Math.ceil(totalRecords / limit),
-      hasNextPage: page * limit < totalRecords,
-      hasPreviousPage: page > 1,
+
+      totalPages: Math.ceil(
+        totalRecords / Number(limit)
+      ),
+
+      hasNextPage:
+        Number(page) * Number(limit) <
+        totalRecords,
+
+      hasPreviousPage:
+        Number(page) > 1,
     },
   };
 };
 
 const updateTodo = async (todoId, userId, updateData) => {
   const user = await User.findById(userId);
+
+  if (!user) {
+    throw new Error("User not found");
+  }
 
   const existingTodo = await todoModel.findOne({
     _id: todoId,
@@ -238,8 +344,16 @@ const updateTodo = async (todoId, userId, updateData) => {
     throw new Error("Todo not found");
   }
 
+  // ============================================
+  // Validate date if user is updating it
+  // ============================================
+  if (updateData.date) {
+    validateDateString(updateData.date);
+  }
+
   const updatePayload = {
     ...updateData,
+
     isEdited: true,
     editedAt: new Date(),
 
@@ -249,40 +363,61 @@ const updateTodo = async (todoId, userId, updateData) => {
         : existingTodo.isAutoAddEveryday,
   };
 
-  // ===========================
-  // Date / Time Changed
-  // ===========================
-  if (updateData.date || updateData.scheduledTime) {
-    const taskDate = new Date(updateData.date || existingTodo.date);
+  // ============================================
+  // DATE / TIME CHANGED
+  // ============================================
+  if (
+    updateData.date !== undefined ||
+    updateData.scheduledTime !== undefined
+  ) {
+    // Both are strings now
+    //
+    // Example:
+    // taskDate = "2026-08-17"
+    // scheduledTime = "16:20"
+
+    const taskDate =
+      updateData.date || existingTodo.date;
 
     const scheduledTime =
-      updateData.scheduledTime || existingTodo.scheduledTime;
+      updateData.scheduledTime ||
+      existingTodo.scheduledTime;
+
+    validateDateString(taskDate);
 
     if (scheduledTime) {
-      const [hours, minutes] = scheduledTime.split(":").map(Number);
+      // Converts only for datetime comparison:
+      //
+      // "2026-08-17" + "16:20"
+      // ->
+      // 17 Aug 2026 16:20 IST
+      const taskDateTime = combineDateAndTimeIST(
+        taskDate,
+        scheduledTime
+      );
 
-      taskDate.setHours(hours);
-      taskDate.setMinutes(minutes);
-      taskDate.setSeconds(0);
-      taskDate.setMilliseconds(0);
-    }
+      const now = new Date();
 
-    const now = new Date();
+      const isDelayed =
+        taskDateTime.getTime() <= now.getTime();
 
-    const isDelayed = taskDate <= now;
+      updatePayload.isDelayed = isDelayed;
 
-    updatePayload.isDelayed = isDelayed;
-    updatePayload.notificationSent = isDelayed;
+      // IMPORTANT:
+      // Date/time changed, so previous notification
+      // should not automatically be considered sent.
+      updatePayload.notificationSent = false;
 
-    if (!isDelayed) {
-      updatePayload.delayReason = "";
-      updatePayload.delayReasonSubmittedAt = null;
+      if (!isDelayed) {
+        updatePayload.delayReason = "";
+        updatePayload.delayReasonSubmittedAt = null;
+      }
     }
   }
 
-  // ===========================
-  // Task Status
-  // ===========================
+  // ============================================
+  // TASK STATUS
+  // ============================================
 
   // COMPLETED
   if (updateData.status === "COMPLETED") {
@@ -306,71 +441,120 @@ const updateTodo = async (todoId, userId, updateData) => {
     if (updateData.remarks !== undefined) {
       updatePayload.remarks = updateData.remarks;
     }
+
+    // Recalculate delay state when changing
+    // an existing task back to PENDING.
+    const taskDate =
+      updateData.date || existingTodo.date;
+
+    const scheduledTime =
+      updateData.scheduledTime ||
+      existingTodo.scheduledTime;
+
+    if (taskDate && scheduledTime) {
+      const taskDateTime = combineDateAndTimeIST(
+        taskDate,
+        scheduledTime
+      );
+
+      updatePayload.isDelayed =
+        taskDateTime.getTime() <= Date.now();
+
+      // Let cron send notification if necessary
+      updatePayload.notificationSent = false;
+    }
   }
 
   // CANCELLED
   else if (updateData.status === "CANCELLED") {
     if (!updateData.cancelReason?.trim()) {
-      throw new Error("Cancellation reason is required");
+      throw new Error(
+        "Cancellation reason is required"
+      );
     }
 
-    updatePayload.cancelReason = updateData.cancelReason.trim();
+    updatePayload.cancelReason =
+      updateData.cancelReason.trim();
+
     updatePayload.cancelledAt = new Date();
 
     updatePayload.completedAt = null;
 
     if (updateData.remarks !== undefined) {
-      updatePayload.remarks = updateData.remarks;
+      updatePayload.remarks =
+        updateData.remarks;
     }
   }
 
-  // ===========================
-  // Delay Reason
-  // ===========================
+  // ============================================
+  // DELAY REASON
+  // ============================================
   if (updateData.delayReason?.trim()) {
-    updatePayload.delayReason = updateData.delayReason.trim();
+    updatePayload.delayReason =
+      updateData.delayReason.trim();
 
     updatePayload.isDelayed = true;
+
+    /*
+      Keep notificationSent true here ONLY if
+      delayReason is submitted by the user after
+      receiving the delayed-task notification.
+
+      In that workflow this is reasonable because
+      the notification has already happened.
+    */
     updatePayload.notificationSent = true;
 
-    if (!existingTodo.delayReasonSubmittedAt) {
-      updatePayload.delayReasonSubmittedAt = new Date();
+    if (
+      !existingTodo.delayReasonSubmittedAt
+    ) {
+      updatePayload.delayReasonSubmittedAt =
+        new Date();
     }
   }
 
-  const todo = await todoModel.findOneAndUpdate(
-    {
-      _id: todoId,
-      userId,
-      isDeleted: false,
-    },
-    updatePayload,
-    {
-      new: true,
-    },
-  );
+  // ============================================
+  // UPDATE
+  // ============================================
+  const todo =
+    await todoModel.findOneAndUpdate(
+      {
+        _id: todoId,
+        userId,
+        isDeleted: false,
+      },
+      updatePayload,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
-  // ===========================
-  // Activity Log
-  // ===========================
-
-  let activityDescription = `${user.email} updated a todo task`;
+  // ============================================
+  // ACTIVITY LOG
+  // ============================================
+  let activityDescription =
+    `${user.email} updated a todo task`;
 
   if (updateData.status === "COMPLETED") {
-    activityDescription = `${user.email} completed a todo task`;
+    activityDescription =
+      `${user.email} completed a todo task`;
   }
 
   if (updateData.status === "CANCELLED") {
-    activityDescription = `${user.email} cancelled a todo task`;
+    activityDescription =
+      `${user.email} cancelled a todo task`;
   }
 
   if (updateData.status === "PENDING") {
-    activityDescription = `${user.email} marked a todo as pending`;
+    activityDescription =
+      `${user.email} marked a todo as pending`;
   }
 
   await activitylogs.createActivity({
     userId,
-    action: activityServicActions.UPDATE_TASK,
+    action:
+      activityServicActions.UPDATE_TASK,
     module: "TODO",
     description: activityDescription,
   });
@@ -380,27 +564,39 @@ const updateTodo = async (todoId, userId, updateData) => {
 
 const deleteTodo = async (todoId, userId) => {
   const user = await User.findById(userId);
-  const todo = await todoModel.findByIdAndUpdate(
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const todo = await todoModel.findOneAndUpdate(
     {
       _id: todoId,
       userId,
       isDeleted: false,
     },
-
     {
-      isDeleted: true,
-      deletedAt: new Date(),
+      $set: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
     },
     {
       new: true,
-    },
+    }
   );
+
+  if (!todo) {
+    throw new Error("Todo not found");
+  }
+
   await activitylogs.createActivity({
-    userId: userId,
+    userId,
     action: activityServicActions.DELETE_TASK,
     module: "TODO",
-    description: `${user.email} delete a todo task`,
+    description: `${user.email} deleted a todo task`,
   });
+
   return todo;
 };
 
@@ -416,20 +612,17 @@ const todoCountByDate = async (userId) => {
         isDeleted: false,
       },
     },
+
     {
       $group: {
-        _id: {
-          $dateToString: {
-            format: "%Y-%m-%d",
-            date: "$date",
-            timezone: "Asia/Kolkata",
-          },
-        },
+        _id: "$date",
+
         count: {
           $sum: 1,
         },
       },
     },
+
     {
       $project: {
         _id: 0,
@@ -437,6 +630,7 @@ const todoCountByDate = async (userId) => {
         count: 1,
       },
     },
+
     {
       $sort: {
         date: 1,
@@ -444,25 +638,11 @@ const todoCountByDate = async (userId) => {
     },
   ]);
 };
-const getISTRangeFromDate = (date) => {
-  const IST_OFFSET = 5.5 * 60 * 60 * 1000;
 
-  const [year, month, day] = date.split("-").map(Number);
-
-  const startDate = new Date(
-    Date.UTC(year, month - 1, day) - IST_OFFSET
-  );
-
-  const endDate = new Date(
-    startDate.getTime() + 24 * 60 * 60 * 1000
-  );
-
-  return {
-    startDate,
-    endDate,
-  };
-};
-const getDashboard = async (userId, date) => {
+const getDashboard = async (
+  userId,
+  date
+) => {
   if (!userId) {
     throw new Error("User not found");
   }
@@ -471,20 +651,13 @@ const getDashboard = async (userId, date) => {
     throw new Error("Date is required");
   }
 
-  const { startDate, endDate } = getISTRangeFromDate(date);
+  validateDateString(date);
 
   const query = {
     userId,
     isDeleted: false,
-    date: {
-      $gte: startDate,
-      $lt: endDate,
-    },
+    date,
   };
-
-  console.log("Requested date =", date);
-  console.log("Start UTC =", startDate.toISOString());
-  console.log("End UTC =", endDate.toISOString());
 
   const [
     totalTasks,
@@ -492,7 +665,9 @@ const getDashboard = async (userId, date) => {
     pendingTasks,
     delayedTasks,
   ] = await Promise.all([
-    todoModel.countDocuments(query),
+    todoModel.countDocuments(
+      query
+    ),
 
     todoModel.countDocuments({
       ...query,
@@ -509,13 +684,14 @@ const getDashboard = async (userId, date) => {
       isDelayed: true,
     }),
   ]);
-console.log("Total tasks =", totalTasks);
-console.log("Completed tasks =", completedTasks);
-console.log("Pending tasks =", pendingTasks);
-console.log("Delayed tasks =", delayedTasks);
+
   const completionRate =
     totalTasks > 0
-      ? Math.round((completedTasks / totalTasks) * 100)
+      ? Math.round(
+          (completedTasks /
+            totalTasks) *
+            100
+        )
       : 0;
 
   return {
@@ -526,57 +702,6 @@ console.log("Delayed tasks =", delayedTasks);
     completionRate,
   };
 };
-
-// const todoListDate = async (userId, date, page, limit) => {
-//   if (!userId) {
-//     throw new Error("User not found");
-//   }
-
-//   const startDate = new Date(date);
-
-//   const endDate = new Date(date);
-//   endDate.setDate(endDate.getDate() + 1);
-
-//   const query = {
-//     userId,
-//     isDeleted: false,
-//     date: {
-//       $gte: startDate,
-//       $lt: endDate,
-//     },
-//   };
-
-//   const skip = (page - 1) * limit;
-
-//   const totalRecords = await todoModel.countDocuments(query);
-
-//   const todos = await todoModel
-//     .find(query)
-//     .sort({ scheduledTime: 1 })
-//     .skip(skip)
-//     .limit(limit);
-
-//   const user = await User.findById(userId);
-
-//   await activitylogs.createActivity({
-//     userId,
-//     action: activityServicActions.DATE_TASK,
-//     module: "DAILY INFO",
-//     description: `${user.name} viewed todo for ${date}`,
-//   });
-
-//   return {
-//     todos,
-//     pagination: {
-//       page,
-//       limit,
-//       totalRecords,
-//       totalPages: Math.ceil(totalRecords / limit),
-//       hasNextPage: page * limit < totalRecords,
-//       hasPreviousPage: page > 1,
-//     },
-//   };
-// };
 
 module.exports = {
   createTodo,
