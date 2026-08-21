@@ -28,18 +28,6 @@ route.get(
   expenseController.getExpenses
 ); //done
 
-/*
- * Get one expense
- */
-// route.get(
-//   "/:id",
-//   middleware.verifyAccessToken,
-//   expenseController.getExpenseById
-// );
-
-/*
- * Update manual expense
- */
 route.put(
   "/:id",
   middleware.verifyAccessToken,
@@ -53,7 +41,7 @@ route.delete(
   "/:id",
   middleware.verifyAccessToken,
   expenseController.deleteExpense
-);
+);//done
 // GET EXPENSE BY DATE
 route.get(
   "/by-date",
