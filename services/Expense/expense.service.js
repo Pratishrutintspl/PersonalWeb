@@ -87,11 +87,24 @@ const createExpense = async ({
 
   // =========================================
   // DATE VALIDATION
+  // Expected format: YYYY-MM-DD
+  // Example: 2026-08-19
   // =========================================
 
   if (!expenseDate) {
     const error = new Error(
       "Expense date is required",
+    );
+
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+  if (!dateRegex.test(expenseDate)) {
+    const error = new Error(
+      "Expense date must be in YYYY-MM-DD format",
     );
 
     error.statusCode = 400;
@@ -147,12 +160,13 @@ const createExpense = async ({
 
     amount: Number(amount),
 
-    expenseDate: new Date(expenseDate),
+    // Keep string directly
+    // Example: "2026-08-19"
+    expenseDate,
 
     description:
       description?.trim() || "",
 
-    // IMPORTANT
     source,
 
     // Only save for BANK
@@ -161,7 +175,7 @@ const createExpense = async ({
         ? bankTransactionId
         : null,
 
-    // Only save paymentMethod for MANUAL
+    // Only save for MANUAL
     paymentMethod:
       source === "MANUAL"
         ? paymentMethod || null
@@ -189,8 +203,7 @@ const getExpenses = async ({
   const {
     categoryId,
     source,
-    startDate,
-    endDate,
+    month,
     page = 1,
     limit = 20,
   } = query;
@@ -199,6 +212,10 @@ const getExpenses = async ({
     userId,
     isDeleted: false,
   };
+
+  // =========================================
+  // CATEGORY FILTER
+  // =========================================
 
   if (categoryId) {
     if (
@@ -209,12 +226,17 @@ const getExpenses = async ({
       const error = new Error(
         "Invalid category id"
       );
+
       error.statusCode = 400;
       throw error;
     }
 
     filter.categoryId = categoryId;
   }
+
+  // =========================================
+  // SOURCE FILTER
+  // =========================================
 
   if (source) {
     const normalizedSource =
@@ -228,6 +250,7 @@ const getExpenses = async ({
       const error = new Error(
         "Invalid expense source"
       );
+
       error.statusCode = 400;
       throw error;
     }
@@ -235,27 +258,109 @@ const getExpenses = async ({
     filter.source = normalizedSource;
   }
 
-  if (startDate || endDate) {
-    filter.expenseDate = {};
+  // =========================================
+  // MONTH FILTER
+  //
+  // Default:
+  // Current month
+  //
+  // Optional:
+  // ?month=2026-08
+  // =========================================
 
-    if (startDate) {
-      filter.expenseDate.$gte =
-        new Date(startDate);
-    }
+  let selectedMonth = month;
 
-    if (endDate) {
-      const date = new Date(endDate);
+  if (!selectedMonth) {
+    const now = new Date();
 
-      date.setHours(
-        23,
-        59,
-        59,
-        999
-      );
+    const year =
+      now.getFullYear();
 
-      filter.expenseDate.$lte = date;
-    }
+    const currentMonth =
+      String(
+        now.getMonth() + 1
+      ).padStart(2, "0");
+
+    selectedMonth =
+      `${year}-${currentMonth}`;
   }
+
+  // =========================================
+  // VALIDATE MONTH
+  // Expected: YYYY-MM
+  // =========================================
+
+  const monthRegex =
+    /^\d{4}-\d{2}$/;
+
+  if (
+    !monthRegex.test(selectedMonth)
+  ) {
+    const error = new Error(
+      "Month must be in YYYY-MM format"
+    );
+
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const [year, monthNumber] =
+    selectedMonth
+      .split("-")
+      .map(Number);
+
+  if (
+    monthNumber < 1 ||
+    monthNumber > 12
+  ) {
+    const error = new Error(
+      "Invalid month"
+    );
+
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // =========================================
+  // GET FIRST & LAST DAY OF MONTH
+  // =========================================
+
+  const lastDay =
+    new Date(
+      year,
+      monthNumber,
+      0
+    ).getDate();
+
+  const startDate =
+    `${selectedMonth}-01`;
+
+  const endDate =
+    `${selectedMonth}-${String(
+      lastDay
+    ).padStart(2, "0")}`;
+
+  // =========================================
+  // APPLY MONTH FILTER
+  // =========================================
+
+  filter.expenseDate = {
+    $gte: startDate,
+    $lte: endDate,
+  };
+
+  console.log(
+    "Expense month filter:",
+    {
+      selectedMonth,
+      startDate,
+      endDate,
+    }
+  );
+
+  // =========================================
+  // PAGINATION
+  // =========================================
 
   const parsedPage = Math.max(
     Number(page) || 1,
@@ -263,21 +368,25 @@ const getExpenses = async ({
   );
 
   const parsedLimit = Math.min(
-    Math.max(Number(limit) || 20, 1),
+    Math.max(
+      Number(limit) || 20,
+      1
+    ),
     100
   );
 
   const skip =
-    (parsedPage - 1) * parsedLimit;
+    (parsedPage - 1) *
+    parsedLimit;
+
+  // =========================================
+  // FETCH EXPENSES
+  // =========================================
 
   const [expenses, total] =
     await Promise.all([
       Expense.find(filter)
-        .populate(
-          "categoryId"
-          // Add fields depending on category schema:
-          // "name icon color"
-        )
+        .populate("categoryId")
         .populate(
           "bankTransactionId"
         )
@@ -289,10 +398,41 @@ const getExpenses = async ({
         .limit(parsedLimit)
         .lean(),
 
-      Expense.countDocuments(filter),
+      Expense.countDocuments(
+        filter
+      ),
+    ]);
+
+  // =========================================
+  // TOTAL EXPENSE AMOUNT
+  // =========================================
+
+  const totalAmount =
+    await Expense.aggregate([
+      {
+        $match: filter,
+      },
+      {
+        $group: {
+          _id: null,
+          totalAmount: {
+            $sum: "$amount",
+          },
+        },
+      },
     ]);
 
   return {
+    month: selectedMonth,
+
+    startDate,
+
+    endDate,
+
+    totalAmount:
+      totalAmount[0]
+        ?.totalAmount || 0,
+
     expenses,
 
     pagination: {
@@ -300,9 +440,10 @@ const getExpenses = async ({
       limit: parsedLimit,
       total,
 
-      totalPages: Math.ceil(
-        total / parsedLimit
-      ),
+      totalPages:
+        Math.ceil(
+          total / parsedLimit
+        ),
     },
   };
 };
@@ -314,6 +455,10 @@ const getExpenseById = async ({
   userId,
   expenseId,
 }) => {
+  console.log("getExpenseById called with:", {
+    userId,
+    expenseId,
+  });
   if (
     !mongoose.Types.ObjectId.isValid(
       expenseId
@@ -322,6 +467,7 @@ const getExpenseById = async ({
     const error = new Error(
       "Invalid expense id"
     );
+
     error.statusCode = 400;
     throw error;
   }
@@ -339,6 +485,7 @@ const getExpenseById = async ({
     const error = new Error(
       "Expense not found"
     );
+
     error.statusCode = 404;
     throw error;
   }
@@ -417,12 +564,27 @@ const updateExpense = async ({
     expense.amount =
       Number(data.amount);
   }
+if (data.expenseDate) {
 
-  if (data.expenseDate) {
-    expense.expenseDate =
-      new Date(data.expenseDate);
+  const dateRegex =
+    /^\d{4}-\d{2}-\d{2}$/;
+
+  if (!dateRegex.test(data.expenseDate)) {
+    const error = new Error(
+      "Expense date must be in YYYY-MM-DD format"
+    );
+
+    error.statusCode = 400;
+    throw error;
   }
 
+  expense.expenseDate =
+    data.expenseDate;
+}
+if (data.paymentMethod !== undefined) {
+  expense.paymentMethod =
+    data.paymentMethod || null;
+}
   if (
     data.description !== undefined
   ) {
@@ -483,11 +645,79 @@ const deleteExpense = async ({
 
   return expense;
 };
+const getExpenseByDate = async ({
+  userId,
+  date,
+}) => {
+  // =========================================
+  // DATE REQUIRED
+  // =========================================
 
+  if (!date) {
+    const error = new Error(
+      "Expense date is required"
+    );
+
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // =========================================
+  // DATE FORMAT VALIDATION
+  // Expected: YYYY-MM-DD
+  // Example: 2026-08-19
+  // =========================================
+
+  const dateRegex =
+    /^\d{4}-\d{2}-\d{2}$/;
+
+  if (!dateRegex.test(date)) {
+    const error = new Error(
+      "Date must be in YYYY-MM-DD format"
+    );
+
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // =========================================
+  // GET EXPENSES
+  // =========================================
+
+  const expenses = await Expense.find({
+    userId,
+    expenseDate: date,
+    isDeleted: false,
+  })
+    .populate("categoryId")
+    .populate("bankTransactionId")
+    .sort({
+      createdAt: -1,
+    })
+    .lean();
+
+  // =========================================
+  // TOTAL AMOUNT
+  // =========================================
+
+  const totalAmount = expenses.reduce(
+    (sum, expense) =>
+      sum + Number(expense.amount || 0),
+    0
+  );
+
+  return {
+    date,
+    totalAmount,
+    totalExpenses: expenses.length,
+    expenses,
+  };
+};
 module.exports = {
   createExpense,
   getExpenses,
   getExpenseById,
   updateExpense,
   deleteExpense,
+  getExpenseByDate
 };

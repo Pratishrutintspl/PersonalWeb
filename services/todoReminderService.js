@@ -31,10 +31,10 @@ const checkDelayedTasks = async () => {
     for (const todo of todos) {
       try {
         console.log("\n====================================");
-        console.log("Todo ID =", todo._id);
-        console.log("Title =", todo.title);
-        console.log("Stored Date =", todo.date);
-        console.log("Scheduled Time =", todo.scheduledTime);
+        // console.log("Todo ID =", todo._id);
+        // console.log("Title =", todo.title);
+        // console.log("Stored Date =", todo.date);
+        // console.log("Scheduled Time =", todo.scheduledTime);
 
         if (!todo.scheduledTime) {
           console.log("No scheduledTime found");
@@ -84,29 +84,29 @@ const checkDelayedTasks = async () => {
           baseDate.getTime() + scheduledMilliseconds
         );
 
-        console.log(
-          "Task DateTime UTC =",
-          taskDateTime.toISOString()
-        );
+        // console.log(
+        //   "Task DateTime UTC =",
+        //   taskDateTime.toISOString()
+        // );
 
-        console.log(
-          "Task DateTime IST =",
-          taskDateTime.toLocaleString("en-IN", {
-            timeZone: "Asia/Kolkata",
-          })
-        );
+        // console.log(
+        //   "Task DateTime IST =",
+        //   taskDateTime.toLocaleString("en-IN", {
+        //     timeZone: "Asia/Kolkata",
+        //   })
+        // );
 
-        console.log(
-          "Current UTC =",
-          now.toISOString()
-        );
+        // console.log(
+        //   "Current UTC =",
+        //   now.toISOString()
+        // );
 
-        console.log(
-          "Current IST =",
-          now.toLocaleString("en-IN", {
-            timeZone: "Asia/Kolkata",
-          })
-        );
+        // console.log(
+        //   "Current IST =",
+        //   now.toLocaleString("en-IN", {
+        //     timeZone: "Asia/Kolkata",
+        //   })
+        // );
 
         // -----------------------------------------
         // Check delayed
@@ -426,12 +426,12 @@ const autoCreateDailyTodos = async () => {
         2
       );
 
-    console.log("Today:", today);
-    console.log("Tomorrow:", tomorrow);
-    console.log(
-      "Day After Tomorrow:",
-      dayAfterTomorrow
-    );
+    // console.log("Today:", today);
+    // console.log("Tomorrow:", tomorrow);
+    // console.log(
+    //   "Day After Tomorrow:",
+    //   dayAfterTomorrow
+    // );
 
     // Example:
     //
@@ -444,66 +444,94 @@ const autoCreateDailyTodos = async () => {
     // GET LATEST TODO FOR EACH USER + TITLE
     // ============================================
 
-    const recurringTodos =
-      await Todo.aggregate([
-        {
-          $match: {
-            isDeleted: false,
-          },
-        },
+    // const recurringTodos =
+    //   await Todo.aggregate([
+    //     {
+    //       $match: {
+    //         isDeleted: false,
+    //       },
+    //     },
 
-        {
-          $sort: {
-            date: -1,
-            createdAt: -1,
-          },
-        },
+    //     {
+    //       $sort: {
+    //         date: -1,
+    //         createdAt: -1,
+    //       },
+    //     },
 
-        {
-          $group: {
-            _id: {
-              userId: "$userId",
-              title: "$title",
-            },
+    //     {
+    //       $group: {
+    //         _id: {
+    //           userId: "$userId",
+    //           title: "$title",
+    //         },
 
-            todo: {
-              $first: "$$ROOT",
-            },
-          },
-        },
+    //         todo: {
+    //           $first: "$$ROOT",
+    //         },
+    //       },
+    //     },
 
-        {
-          $match: {
-            "todo.isAutoAddEveryday": true,
-          },
-        },
-      ]);
+    //     {
+    //       $match: {
+    //         "todo.isAutoAddEveryday": true,
+    //       },
+    //     },
+    //   ]);
 
-    console.log(
-      `Recurring todos found: ${recurringTodos.length}`
-    );
+    const latestTodos = await Todo.aggregate([
+  {
+    $match: {
+      isDeleted: false,
+    },
+  },
+  {
+    $sort: {
+      updatedAt: -1,
+      createdAt: -1,
+    },
+  },
+  {
+    $group: {
+      _id: {
+        userId: "$userId",
+        title: "$title",
+      },
+      todo: {
+        $first: "$$ROOT",
+      },
+    },
+  },
+]);
 
-
-    // ============================================
-    // LOOP THROUGH TODOS
-    // ============================================
+latestTodos.forEach(({ todo }) => {
+  console.log({
+    title: todo.title,
+    date: todo.date,
+    auto: todo.isAutoAddEveryday,
+    createdAt: todo.createdAt,
+    updatedAt: todo.updatedAt,
+    id: todo._id,
+  });
+});
+  
 
     for (const item of recurringTodos) {
       const todo = item.todo;
 
       try {
-        console.log(
-          "----------------------------------"
-        );
+        // console.log(
+        //   "----------------------------------"
+        // );
 
-        console.log(
-          `Checking: ${todo.title}`
-        );
+        // console.log(
+        //   `Checking: ${todo.title}`
+        // );
 
-        console.log(
-          "Source todo date:",
-          todo.date
-        );
+        // console.log(
+        //   "Source todo date:",
+        //   todo.date
+        // );
 
 
         // ============================================
@@ -524,14 +552,14 @@ const autoCreateDailyTodos = async () => {
 
 
         if (alreadyExists) {
-          console.log(
-            `Already exists today -> ${todo.title}`
-          );
+          // console.log(
+          //   `Already exists today -> ${todo.title}`
+          // );
 
-          console.log(
-            "Existing date:",
-            alreadyExists.date
-          );
+          // console.log(
+          //   "Existing date:",
+          //   alreadyExists.date
+          // );
 
           continue;
         }
@@ -606,14 +634,14 @@ const autoCreateDailyTodos = async () => {
           });
 
 
-        console.log(
-          `Created -> ${createdTodo.title}`
-        );
+        // console.log(
+        //   `Created -> ${createdTodo.title}`
+        // );
 
-        console.log(
-          "Created date:",
-          createdTodo.date
-        );
+        // console.log(
+        //   "Created date:",
+        //   createdTodo.date
+        // );
 
         // Should print:
         // 2026-08-17
@@ -627,9 +655,9 @@ const autoCreateDailyTodos = async () => {
     }
 
 
-    console.log(
-      "========== AUTO TODO COMPLETED =========="
-    );
+    // console.log(
+    //   "========== AUTO TODO COMPLETED =========="
+    // );
 
   } catch (error) {
     console.error(

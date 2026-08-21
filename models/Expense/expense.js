@@ -23,11 +23,15 @@ const expenseSchema = new mongoose.Schema(
     },
 
     expenseDate: {
-      type: Date,
+      type: String,
       required: true,
-      index: true,
+      validate: {
+        validator: function (value) {
+          return /^\d{4}-\d{2}-\d{2}$/.test(value);
+        },
+        message: "Date must be in YYYY-MM-DD format",
+      },
     },
-
     description: {
       type: String,
       default: "",
@@ -64,10 +68,7 @@ const expenseSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-module.exports = mongoose.model(
-  "expense",
-  expenseSchema
-);
+module.exports = mongoose.model("expense", expenseSchema);
