@@ -40,50 +40,105 @@ const createExpense = async (req, res) => {
 /*
  * GET /expenses
  */
-const getExpenses = async (req, res) => {
+const getExpenses = async (
+  req,
+  res
+) => {
   try {
-    const userId = getUserId(req);
+    const userId =
+      getUserId(req);
 
-    const result = await expenseService.getExpenses({
-      userId,
-      query: req.query,
-    });
-
-    // return res.status(200).json({
-    //   success: true,
-    //   message:
-    //     "Expenses fetched successfully",
-
-    //   data: {
-    //     expenses:
-    //       result.expenses,
-
-    //     pagination:
-    //       result.pagination,
-    //   },
-
-    //   statusCode: 200,
-    // });
+    const result =
+      await expenseService.getExpenses({
+        userId,
+        query: req.query,
+      });
 
     return response.SucessResponse(
       res,
       200,
       message.expenseFetched,
-    
-      data= {
+      {
+        month:
+          result.month,
+
+        startDate:
+          result.startDate,
+
+        endDate:
+          result.endDate,
+
+        totalAmount:
+          result.totalAmount,
+
         expenses:
           result.expenses,
 
         pagination:
           result.pagination,
-      },
+      }
     );
   } catch (error) {
-    console.log("Errorrrr--=-=-=", error);
-    return response.errorResponse(res, 500, error.message, null);
+    console.error(
+      "Get Expenses Error:",
+      error
+    );
+
+    return response.errorResponse(
+      res,
+      error.statusCode || 500,
+      error.message,
+      null
+    );
   }
 };
+const getExpenseByDate = async (
+  req,
+  res
+) => {
+  try {
+    const userId = getUserId(req);
 
+    const { date } = req.query;
+
+    const result =
+      await expenseService.getExpenseByDate({
+        userId,
+        date,
+      });
+
+    return response.SucessResponse(
+      res,
+      200,
+      message.expenseFetched,
+      {
+        date: result.date,
+
+        totalAmount:
+          result.totalAmount,
+
+        totalExpenses:
+          result.totalExpenses,
+
+        expenses:
+          result.expenses,
+      }
+    );
+    
+  } catch (error) {
+    console.log(
+      "Get expense by date error:",
+      error
+    );
+
+    return response.errorResponse(
+      res,
+      error.statusCode || 500,
+      error.message,
+      null
+    );
+  }
+};
 /*
  * GET /expenses/:id
  */
@@ -91,27 +146,40 @@ const getExpenseById = async (req, res) => {
   try {
     const userId = getUserId(req);
 
-    const expense = await expenseService.getExpenseById({
-      userId,
-      expenseId: req.params.id,
-    });
+    console.log(
+      "Expense ID:",
+      req.params.id
+    );
 
-    return res.status(200).json({
-      success: true,
-      message: "Expense fetched successfully",
-      data: expense,
-      statusCode: 200,
-    });
+    const expense =
+      await expenseService.getExpenseById({
+        userId,
+        expenseId: req.params.id,
+      });
+
+    console.log(
+      "EXPENSE--------",
+      expense
+    );
+
+    return response.SucessResponse(
+      res,
+      200,
+      message.expenseFetched,
+      expense
+    );
   } catch (error) {
-    console.error("getExpenseById:", error);
+    console.error(
+      "getExpenseById:",
+      error
+    );
 
-    const statusCode = error.statusCode || 400;
-
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message || "Failed to fetch expense",
-      statusCode,
-    });
+    return response.errorResponse(
+      res,
+      error.statusCode || 500,
+      error.message,
+      null
+    );
   }
 };
 
@@ -128,22 +196,29 @@ const updateExpense = async (req, res) => {
       data: req.body,
     });
 
-    return res.status(200).json({
-      success: true,
-      message: "Expense updated successfully",
-      data: expense,
-      statusCode: 200,
-    });
+    // return res.status(200).json({
+    //   success: true,
+    //   message: "Expense updated successfully",
+    //   data: expense,
+    //   statusCode: 200,
+    // });
+    
+    return response.SucessResponse(
+      res,
+      200,
+      message.expenseUpdated,
+      expense
+    );
   } catch (error) {
     console.error("updateExpense:", error);
 
-    const statusCode = error.statusCode || 400;
 
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message || "Failed to update expense",
-      statusCode,
-    });
+   return response.errorResponse(
+      res,
+      error.statusCode || 500,
+      error.message,
+      null
+    );
   }
 };
 
@@ -159,21 +234,24 @@ const deleteExpense = async (req, res) => {
       expenseId: req.params.id,
     });
 
-    return res.status(200).json({
-      success: true,
-      message: "Expense deleted successfully",
-      statusCode: 200,
-    });
+  return response.SucessResponse(
+      res,
+      200,
+      message.expenseDeleted,
+      null
+    );
   } catch (error) {
     console.error("deleteExpense:", error);
 
-    const statusCode = error.statusCode || 400;
 
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message || "Failed to delete expense",
-      statusCode,
-    });
+
+  
+    return response.errorResponse(
+      res,
+      error.statusCode || 500,
+      error.message,
+      null
+    );
   }
 };
 
@@ -183,4 +261,5 @@ module.exports = {
   getExpenseById,
   updateExpense,
   deleteExpense,
+  getExpenseByDate,
 };

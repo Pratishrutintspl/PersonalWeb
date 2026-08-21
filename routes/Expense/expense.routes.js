@@ -17,7 +17,7 @@ route.post(
   "/",
   middleware.verifyAccessToken,
   expenseController.createExpense
-);
+); //done
 
 /*
  * Get all expenses
@@ -26,7 +26,7 @@ route.get(
   "/",
   middleware.verifyAccessToken,
   expenseController.getExpenses
-);
+); //done
 
 /*
  * Get one expense
@@ -44,7 +44,7 @@ route.put(
   "/:id",
   middleware.verifyAccessToken,
   expenseController.updateExpense
-);
+); //done
 
 /*
  * Soft delete manual expense
@@ -54,5 +54,17 @@ route.delete(
   middleware.verifyAccessToken,
   expenseController.deleteExpense
 );
-
+// GET EXPENSE BY DATE
+route.get(
+  "/by-date",
+  middleware.verifyAccessToken,
+  expenseController.getExpenseByDate
+);
+ //done
+// GET EXPENSE BY ID
+route.get(
+  "/:id",
+  middleware.verifyAccessToken,
+  expenseController.getExpenseById
+); //done
 module.exports = route;

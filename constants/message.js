@@ -35,9 +35,12 @@ const categoryFetched = "Category fetched successfully";
 const updateCategory = "Category updated successfully";
 const bankTranFetch = "Bank transactions fetched successfully";
 const expenseFetched = "Expenses fetched successfully";
-
+const expenseUpdated ="Expense updated successfully";
+const expenseDeleted = "Expense deleted successfully";
 module.exports = {
   expenseFetched,
+  expenseUpdated,
+  expenseDeleted,
   bankTranFetch,
   bankDeleted,
   bankDisconnect,
