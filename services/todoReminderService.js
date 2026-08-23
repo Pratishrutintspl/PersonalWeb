@@ -426,15 +426,15 @@ const autoCreateDailyTodos = async () => {
         2
       );
 
-    // console.log("Today:", today);
-    // console.log("Tomorrow:", tomorrow);
-    // console.log(
-    //   "Day After Tomorrow:",
-    //   dayAfterTomorrow
-    // );
+    console.log("Today:", today);
+    console.log("Tomorrow:", tomorrow);
+    console.log(
+      "Day After Tomorrow:",
+      dayAfterTomorrow
+    );
 
     // Example:
-    //
+    
     // Today: 2026-08-17
     // Tomorrow: 2026-08-18
     // Day After Tomorrow: 2026-08-19
@@ -520,18 +520,18 @@ latestTodos.forEach(({ todo }) => {
       const todo = item.todo;
 
       try {
-        // console.log(
-        //   "----------------------------------"
-        // );
+        console.log(
+          "----------------------------------"
+        );
 
-        // console.log(
-        //   `Checking: ${todo.title}`
-        // );
+        console.log(
+          `Checking: ${todo.title}`
+        );
 
-        // console.log(
-        //   "Source todo date:",
-        //   todo.date
-        // );
+        console.log(
+          "Source todo date:",
+          todo.date
+        );
 
 
         // ============================================
@@ -552,14 +552,14 @@ latestTodos.forEach(({ todo }) => {
 
 
         if (alreadyExists) {
-          // console.log(
-          //   `Already exists today -> ${todo.title}`
-          // );
+          console.log(
+            `Already exists today -> ${todo.title}`
+          );
 
-          // console.log(
-          //   "Existing date:",
-          //   alreadyExists.date
-          // );
+          console.log(
+            "Existing date:",
+            alreadyExists.date
+          );
 
           continue;
         }
@@ -634,14 +634,14 @@ latestTodos.forEach(({ todo }) => {
           });
 
 
-        // console.log(
-        //   `Created -> ${createdTodo.title}`
-        // );
+        console.log(
+          `Created -> ${createdTodo.title}`
+        );
 
-        // console.log(
-        //   "Created date:",
-        //   createdTodo.date
-        // );
+        console.log(
+          "Created date:",
+          createdTodo.date
+        );
 
         // Should print:
         // 2026-08-17
