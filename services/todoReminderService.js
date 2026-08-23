@@ -133,9 +133,9 @@ const checkDelayedTasks = async () => {
           continue;
         }
 
-        console.log(
-          `Delayed Task Found -> ${todo.title}`
-        );
+        // console.log(
+        //   `Delayed Task Found -> ${todo.title}`
+        // );
 
         const user = await User.findById(
           todo.userId
@@ -163,15 +163,15 @@ const checkDelayedTasks = async () => {
               })
             );
 
-            console.log("Todo ID:", todo._id);
-            console.log("User:", user.name);
-            console.log("Email:", user.email);
-            console.log("Title:", todo.title);
+            // console.log("Todo ID:", todo._id);
+            // console.log("User:", user.name);
+            // console.log("Email:", user.email);
+            // console.log("Title:", todo.title);
 
-            console.log(
-              "Scheduled Time:",
-              todo.scheduledTime
-            );
+            // console.log(
+            //   "Scheduled Time:",
+            //   todo.scheduledTime
+            // );
 
             console.log(
               "Task DateTime IST:",
@@ -269,10 +269,10 @@ const checkDelayedTasks = async () => {
     }
 
     console.log("\n====================================");
-    console.log(
-      "Delayed Tasks =",
-      delayedTasks
-    );
+    // console.log(
+    //   "Delayed Tasks =",
+    //   delayedTasks
+    // );
     console.log("====================================");
 
     return delayedTasks;
