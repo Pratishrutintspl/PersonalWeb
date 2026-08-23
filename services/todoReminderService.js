@@ -115,7 +115,7 @@ const checkDelayedTasks = async () => {
         const isDelayed =
           taskDateTime.getTime() <= now.getTime();
 
-        console.log("Is Delayed =", isDelayed);
+        // console.log("Is Delayed =", isDelayed);
 
         // Not delayed yet
         if (!isDelayed) {
@@ -229,9 +229,9 @@ const checkDelayedTasks = async () => {
               err.stack
             );
 
-            console.log(
-              "==============================================\n"
-            );
+            // console.log(
+            //   "==============================================\n"
+            // );
 
             // If email fails, don't mark notificationSent=true
             continue;
