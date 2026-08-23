@@ -516,7 +516,7 @@ latestTodos.forEach(({ todo }) => {
 });
   
 
-    for (const item of recurringTodos) {
+    for (const item of latestTodos) {
       const todo = item.todo;
 
       try {
