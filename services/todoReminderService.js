@@ -127,9 +127,9 @@ const checkDelayedTasks = async () => {
 
         // Already notified
         if (todo.notificationSent) {
-          console.log(
-            `Notification already sent -> ${todo.title}`
-          );
+          // console.log(
+          //   `Notification already sent -> ${todo.title}`
+          // );
           continue;
         }
 
