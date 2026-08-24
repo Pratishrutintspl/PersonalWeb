@@ -14,7 +14,7 @@ const checkDelayedTasks = async () => {
       "Current IST:",
       now.toLocaleString("en-IN", {
         timeZone: "Asia/Kolkata",
-      })
+      }),
     );
 
     console.log("====================================");
@@ -45,17 +45,10 @@ const checkDelayedTasks = async () => {
         // Parse scheduled time
         // -----------------------------------------
 
-        const [hours, minutes] = todo.scheduledTime
-          .split(":")
-          .map(Number);
+        const [hours, minutes] = todo.scheduledTime.split(":").map(Number);
 
-        if (
-          Number.isNaN(hours) ||
-          Number.isNaN(minutes)
-        ) {
-          console.log(
-            `Invalid scheduledTime: ${todo.scheduledTime}`
-          );
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+          console.log(`Invalid scheduledTime: ${todo.scheduledTime}`);
           continue;
         }
 
@@ -77,11 +70,10 @@ const checkDelayedTasks = async () => {
 
         const baseDate = new Date(todo.date);
 
-        const scheduledMilliseconds =
-          (hours * 60 + minutes) * 60 * 1000;
+        const scheduledMilliseconds = (hours * 60 + minutes) * 60 * 1000;
 
         const taskDateTime = new Date(
-          baseDate.getTime() + scheduledMilliseconds
+          baseDate.getTime() + scheduledMilliseconds,
         );
 
         // console.log(
@@ -112,34 +104,25 @@ const checkDelayedTasks = async () => {
         // Check delayed
         // -----------------------------------------
 
-        const isDelayed =
-          taskDateTime.getTime() <= now.getTime();
+        const isDelayed = taskDateTime.getTime() <= now.getTime();
 
         console.log("Is Delayed =", isDelayed);
 
         // Not delayed yet
         if (!isDelayed) {
-          console.log(
-            `Not delayed yet -> ${todo.title}`
-          );
+          console.log(`Not delayed yet -> ${todo.title}`);
           continue;
         }
 
         // Already notified
         if (todo.notificationSent) {
-          console.log(
-            `Notification already sent -> ${todo.title}`
-          );
+          console.log(`Notification already sent -> ${todo.title}`);
           continue;
         }
 
-        console.log(
-          `Delayed Task Found -> ${todo.title}`
-        );
+        console.log(`Delayed Task Found -> ${todo.title}`);
 
-        const user = await User.findById(
-          todo.userId
-        );
+        const user = await User.findById(todo.userId);
 
         // -----------------------------------------
         // SEND EMAIL
@@ -147,20 +130,15 @@ const checkDelayedTasks = async () => {
 
         if (user?.email) {
           try {
-            console.log(
-              "\n================ EMAIL TRIGGER ================="
-            );
+            console.log("\n================ EMAIL TRIGGER =================");
 
-            console.log(
-              "Trigger UTC:",
-              new Date().toISOString()
-            );
+            console.log("Trigger UTC:", new Date().toISOString());
 
             console.log(
               "Trigger IST:",
               new Date().toLocaleString("en-IN", {
                 timeZone: "Asia/Kolkata",
-              })
+              }),
             );
 
             console.log("Todo ID:", todo._id);
@@ -168,70 +146,38 @@ const checkDelayedTasks = async () => {
             console.log("Email:", user.email);
             console.log("Title:", todo.title);
 
-            console.log(
-              "Scheduled Time:",
-              todo.scheduledTime
-            );
+            console.log("Scheduled Time:", todo.scheduledTime);
 
             console.log(
               "Task DateTime IST:",
-              taskDateTime.toLocaleString(
-                "en-IN",
-                {
-                  timeZone: "Asia/Kolkata",
-                }
-              )
+              taskDateTime.toLocaleString("en-IN", {
+                timeZone: "Asia/Kolkata",
+              }),
             );
 
             const start = Date.now();
 
-            await emailService.sendDelayTaskEmail(
-              user.email,
-              user.name,
-              todo
-            );
+            await emailService.sendDelayTaskEmail(user.email, user.name, todo);
 
             const end = Date.now();
 
-            console.log(
-              "✅ Email Sent Successfully"
-            );
+            console.log("✅ Email Sent Successfully");
 
-            console.log(
-              `Email Sending Time: ${end - start} ms`
-            );
+            console.log(`Email Sending Time: ${end - start} ms`);
 
-            console.log(
-              "===============================================\n"
-            );
+            console.log("===============================================\n");
           } catch (err) {
-            console.log(
-              "\n================ EMAIL ERROR ================="
-            );
+            console.log("\n================ EMAIL ERROR =================");
 
-            console.log(
-              "Todo ID:",
-              todo._id
-            );
+            console.log("Todo ID:", todo._id);
 
-            console.log(
-              "Email:",
-              user.email
-            );
+            console.log("Email:", user.email);
 
-            console.log(
-              "Message:",
-              err.message
-            );
+            console.log("Message:", err.message);
 
-            console.log(
-              "Stack:",
-              err.stack
-            );
+            console.log("Stack:", err.stack);
 
-            console.log(
-              "==============================================\n"
-            );
+            console.log("==============================================\n");
 
             // If email fails, don't mark notificationSent=true
             continue;
@@ -242,117 +188,42 @@ const checkDelayedTasks = async () => {
         // UPDATE TODO
         // -----------------------------------------
 
-        await Todo.findByIdAndUpdate(
-          todo._id,
-          {
-            $set: {
-              isDelayed: true,
-              notificationSent: true,
-            },
-          }
-        );
+        await Todo.findByIdAndUpdate(todo._id, {
+          $set: {
+            isDelayed: true,
+            notificationSent: true,
+          },
+        });
 
         delayedTasks.push({
           todoId: todo._id,
           title: todo.title,
           scheduledTime: todo.scheduledTime,
-          taskDateTime:
-            taskDateTime.toISOString(),
+          taskDateTime: taskDateTime.toISOString(),
           email: user?.email,
         });
       } catch (todoError) {
-        console.error(
-          `Error checking todo ${todo._id}:`,
-          todoError
-        );
+        console.error(`Error checking todo ${todo._id}:`, todoError);
       }
     }
 
     console.log("\n====================================");
-    console.log(
-      "Delayed Tasks =",
-      delayedTasks
-    );
+    console.log("Delayed Tasks =", delayedTasks);
     console.log("====================================");
 
     return delayedTasks;
   } catch (error) {
-    console.error(
-      "CHECK DELAYED TASKS ERROR:",
-      error
-    );
+    console.error("CHECK DELAYED TASKS ERROR:", error);
 
     throw error;
   }
 };
 
-
 const IST_OFFSET = 5.5 * 60 * 60 * 1000;
-
-
-
-
 
 // ============================================
 // IST DATE HELPERS
 // ============================================
-
-const getISTDayRange = () => {
-  const now = new Date();
-
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-
-  const values = {};
-
-  for (const part of parts) {
-    if (part.type !== "literal") {
-      values[part.type] = part.value;
-    }
-  }
-
-  // Example if today is 17 Aug 2026:
-  // 17 Aug 2026 00:00 IST
-  // = 16 Aug 2026 18:30 UTC
-  const today = new Date(
-    `${values.year}-${values.month}-${values.day}T00:00:00.000+05:30`
-  );
-
-  // India has no daylight-saving changes,
-  // so adding 24 hours is safe here.
-  const tomorrow = new Date(
-    today.getTime() + 24 * 60 * 60 * 1000
-  );
-
-  const dayAfterTomorrow = new Date(
-    today.getTime() + 2 * 24 * 60 * 60 * 1000
-  );
-
-  return {
-    today,
-    tomorrow,
-    dayAfterTomorrow,
-  };
-};
-
-
-const getISTString = (date) => {
-  return new Date(date).toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-};
-
 
 // ============================================
 // AUTO CREATE DAILY TODOS
@@ -377,31 +248,54 @@ const getTodayIST = () => {
 };
 
 
-const addDaysToDate = (dateString, days) => {
-  const [year, month, day] = dateString
-    .split("-")
-    .map(Number);
+// ============================================
+// CONVERT DATE TO YYYY-MM-DD IN IST
+// ============================================
+//
+// Supports:
+//
+// "2026-08-21"
+//
+// AND
+//
+// ISODate("2026-08-20T18:30:00.000Z")
+//
+// Both return:
+//
+// "2026-08-21"
+// ============================================
 
-  const date = new Date(
-    Date.UTC(year, month - 1, day)
-  );
+const getDateStringIST = (value) => {
+  // Already a string
+  if (typeof value === "string") {
+    return value.substring(0, 10);
+  }
 
-  date.setUTCDate(
-    date.getUTCDate() + days
-  );
+  // MongoDB Date / JS Date
+  const date = new Date(value);
 
-  const y = date.getUTCFullYear();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
 
-  const m = String(
-    date.getUTCMonth() + 1
-  ).padStart(2, "0");
+  const values = {};
 
-  const d = String(
-    date.getUTCDate()
-  ).padStart(2, "0");
+  for (const part of parts) {
+    if (part.type !== "literal") {
+      values[part.type] = part.value;
+    }
+  }
 
-  return `${y}-${m}-${d}`;
+  return `${values.year}-${values.month}-${values.day}`;
 };
+
+
+// ============================================
+// AUTO CREATE DAILY TODOS
+// ============================================
 
 const autoCreateDailyTodos = async () => {
   try {
@@ -410,133 +304,305 @@ const autoCreateDailyTodos = async () => {
     );
 
     // ============================================
-    // DATE STRINGS ONLY
+    // STEP 1
+    // GET TODAY DATE
     // ============================================
 
     const today = getTodayIST();
 
-    const tomorrow = addDaysToDate(
-      today,
-      1
-    );
+    console.log("Today:", today);
 
-    const dayAfterTomorrow =
-      addDaysToDate(
-        today,
-        2
+
+    // ============================================
+    // STEP 2
+    // FIND THE LAST TODO ADDED IN DATABASE
+    // ============================================
+    //
+    // We are NOT:
+    //
+    // - grouping by title
+    // - finding latest todo for each title
+    //
+    // We only find the LAST todo inserted.
+    // ============================================
+
+    const lastTodo = await Todo.findOne({
+      isDeleted: false,
+    })
+      .sort({
+        createdAt: -1,
+        _id: -1,
+      })
+      .lean();
+
+
+    // ============================================
+    // NO TODOS FOUND
+    // ============================================
+
+    if (!lastTodo) {
+      console.log("No todos found in database.");
+
+      console.log(
+        "========== AUTO TODO COMPLETED =========="
       );
 
-    // console.log("Today:", today);
-    // console.log("Tomorrow:", tomorrow);
-    // console.log(
-    //   "Day After Tomorrow:",
-    //   dayAfterTomorrow
-    // );
+      return;
+    }
 
+
+    // ============================================
+    // STEP 3
+    // GET DATE OF LAST TODO
+    // ============================================
+
+    const sourceDate =
+      getDateStringIST(lastTodo.date);
+
+
+    console.log("----------------------------------");
+
+    console.log(
+      "Last todo added:",
+      lastTodo.title
+    );
+
+    console.log(
+      "Last todo raw date:",
+      lastTodo.date
+    );
+
+    console.log(
+      "Source date:",
+      sourceDate
+    );
+
+    console.log(
+      "Today:",
+      today
+    );
+
+
+    // ============================================
+    // STEP 4
+    // GET ALL TODOS FROM SOURCE DATE
+    // ============================================
+    //
     // Example:
     //
-    // Today: 2026-08-17
-    // Tomorrow: 2026-08-18
-    // Day After Tomorrow: 2026-08-19
+    // Last todo in DB:
+    //
+    // {
+    //   title: "One Fruit",
+    //   date: "2026-08-21"
+    // }
+    //
+    // sourceDate:
+    //
+    // "2026-08-21"
+    //
+    // Now get ALL todos from 2026-08-21
+    //
+    // BUT only:
+    //
+    // isAutoAddEveryday: true
+    //
+    // ============================================
+
+    const sourceTodos = await Todo.aggregate([
+      // ------------------------------------------
+      // ACTIVE TODOS ONLY
+      // ------------------------------------------
+
+      {
+        $match: {
+          isDeleted: false,
+          isAutoAddEveryday: true,
+        },
+      },
+
+
+      // ------------------------------------------
+      // NORMALIZE DATE
+      // ------------------------------------------
+      //
+      // This handles old Mongo Date values
+      // and new String date values.
+      // ------------------------------------------
+
+      {
+        $set: {
+          normalizedDate: {
+            $switch: {
+              branches: [
+                // ==================================
+                // MongoDB Date
+                // ==================================
+
+                {
+                  case: {
+                    $eq: [
+                      {
+                        $type: "$date",
+                      },
+                      "date",
+                    ],
+                  },
+
+                  then: {
+                    $dateToString: {
+                      date: "$date",
+                      format: "%Y-%m-%d",
+                      timezone: "Asia/Kolkata",
+                    },
+                  },
+                },
+
+
+                // ==================================
+                // String
+                // ==================================
+
+                {
+                  case: {
+                    $eq: [
+                      {
+                        $type: "$date",
+                      },
+                      "string",
+                    ],
+                  },
+
+                  then: {
+                    $substrBytes: [
+                      "$date",
+                      0,
+                      10,
+                    ],
+                  },
+                },
+              ],
+
+              default: "",
+            },
+          },
+        },
+      },
+
+
+      // ------------------------------------------
+      // ONLY LAST TODO'S DATE
+      // ------------------------------------------
+
+      {
+        $match: {
+          normalizedDate: sourceDate,
+        },
+      },
+
+
+      // ------------------------------------------
+      // KEEP SAME ORDER AS ORIGINAL DAY
+      // ------------------------------------------
+
+      {
+        $sort: {
+          createdAt: 1,
+          _id: 1,
+        },
+      },
+    ]);
+
+
+    console.log("----------------------------------");
+
+    console.log(
+      `Source date = ${sourceDate}`
+    );
+
+    console.log(
+      `Auto todos found = ${sourceTodos.length}`
+    );
 
 
     // ============================================
-    // GET LATEST TODO FOR EACH USER + TITLE
+    // NOTHING TO AUTO CREATE
     // ============================================
 
-    // const recurringTodos =
-    //   await Todo.aggregate([
-    //     {
-    //       $match: {
-    //         isDeleted: false,
-    //       },
-    //     },
+    if (sourceTodos.length === 0) {
+      console.log(
+        `No auto-add todos found on ${sourceDate}`
+      );
 
-    //     {
-    //       $sort: {
-    //         date: -1,
-    //         createdAt: -1,
-    //       },
-    //     },
+      console.log(
+        "========== AUTO TODO COMPLETED =========="
+      );
 
-    //     {
-    //       $group: {
-    //         _id: {
-    //           userId: "$userId",
-    //           title: "$title",
-    //         },
+      return;
+    }
 
-    //         todo: {
-    //           $first: "$$ROOT",
-    //         },
-    //       },
-    //     },
 
-    //     {
-    //       $match: {
-    //         "todo.isAutoAddEveryday": true,
-    //       },
-    //     },
-    //   ]);
+    // ============================================
+    // STEP 5
+    // LOOP THROUGH SOURCE DATE TODOS
+    // ============================================
 
-    const latestTodos = await Todo.aggregate([
-  {
-    $match: {
-      isDeleted: false,
-    },
-  },
-  {
-    $sort: {
-      updatedAt: -1,
-      createdAt: -1,
-    },
-  },
-  {
-    $group: {
-      _id: {
-        userId: "$userId",
-        title: "$title",
-      },
-      todo: {
-        $first: "$$ROOT",
-      },
-    },
-  },
-]);
-
-latestTodos.forEach(({ todo }) => {
-  console.log({
-    title: todo.title,
-    date: todo.date,
-    auto: todo.isAutoAddEveryday,
-    createdAt: todo.createdAt,
-    updatedAt: todo.updatedAt,
-    id: todo._id,
-  });
-});
-  
-
-    for (const item of recurringTodos) {
-      const todo = item.todo;
-
+    for (const todo of sourceTodos) {
       try {
-        // console.log(
-        //   "----------------------------------"
-        // );
+        console.log(
+          "----------------------------------"
+        );
 
-        // console.log(
-        //   `Checking: ${todo.title}`
-        // );
+        console.log(
+          "Checking todo:",
+          todo.title
+        );
 
-        // console.log(
-        //   "Source todo date:",
-        //   todo.date
-        // );
+        console.log(
+          "User:",
+          todo.userId
+        );
+
+        console.log(
+          "Source date:",
+          sourceDate
+        );
+
+        console.log(
+          "Auto add:",
+          todo.isAutoAddEveryday
+        );
 
 
-        // ============================================
-        // CHECK IF SAME TODO EXISTS TODAY
-        // ============================================
+        // ========================================
+        // SAFETY CHECK
+        // ========================================
+
+        if (
+          todo.isAutoAddEveryday !== true
+        ) {
+          console.log(
+            `Skipping auto disabled -> ${todo.title}`
+          );
+
+          continue;
+        }
+
+
+        // ========================================
+        // STEP 6
+        // CHECK IF SAME TODO ALREADY EXISTS TODAY
+        // ========================================
+        //
+        // Handles:
+        //
+        // date: "2026-08-24"
+        //
+        // and old:
+        //
+        // date: ISODate(...)
+        //
+        // ========================================
 
         const alreadyExists =
           await Todo.findOne({
@@ -546,28 +612,87 @@ latestTodos.forEach(({ todo }) => {
 
             isDeleted: false,
 
-            // Exact string match
-            date: today,
+            $expr: {
+              $eq: [
+                {
+                  $switch: {
+                    branches: [
+                      // --------------------------
+                      // MongoDB Date
+                      // --------------------------
+
+                      {
+                        case: {
+                          $eq: [
+                            {
+                              $type: "$date",
+                            },
+                            "date",
+                          ],
+                        },
+
+                        then: {
+                          $dateToString: {
+                            date: "$date",
+                            format: "%Y-%m-%d",
+                            timezone:
+                              "Asia/Kolkata",
+                          },
+                        },
+                      },
+
+
+                      // --------------------------
+                      // String date
+                      // --------------------------
+
+                      {
+                        case: {
+                          $eq: [
+                            {
+                              $type: "$date",
+                            },
+                            "string",
+                          ],
+                        },
+
+                        then: {
+                          $substrBytes: [
+                            "$date",
+                            0,
+                            10,
+                          ],
+                        },
+                      },
+                    ],
+
+                    default: "",
+                  },
+                },
+
+                today,
+              ],
+            },
           }).lean();
 
 
-        if (alreadyExists) {
-          // console.log(
-          //   `Already exists today -> ${todo.title}`
-          // );
+        // ========================================
+        // ALREADY EXISTS TODAY
+        // ========================================
 
-          // console.log(
-          //   "Existing date:",
-          //   alreadyExists.date
-          // );
+        if (alreadyExists) {
+          console.log(
+            `Already exists today -> ${todo.title}`
+          );
 
           continue;
         }
 
 
-        // ============================================
-        // CREATE TODAY'S TODO
-        // ============================================
+        // ========================================
+        // STEP 7
+        // CREATE TODO FOR TODAY
+        // ========================================
 
         const createdTodo =
           await Todo.create({
@@ -578,10 +703,10 @@ latestTodos.forEach(({ todo }) => {
             description:
               todo.description,
 
-            // IMPORTANT:
-            // String only
-            //
-            // "2026-08-17"
+            // ====================================
+            // TODAY
+            // ====================================
+
             date: today,
 
             scheduledTime:
@@ -598,6 +723,11 @@ latestTodos.forEach(({ todo }) => {
 
             priority:
               todo.priority,
+
+
+            // ====================================
+            // RESET DAILY VALUES
+            // ====================================
 
             actualValue: 0,
 
@@ -626,6 +756,11 @@ latestTodos.forEach(({ todo }) => {
 
             completionPercentage: 0,
 
+
+            // ====================================
+            // KEEP AUTO ADD ON
+            // ====================================
+
             isAutoAddEveryday: true,
 
             cancelReason: "",
@@ -634,17 +769,17 @@ latestTodos.forEach(({ todo }) => {
           });
 
 
-        // console.log(
-        //   `Created -> ${createdTodo.title}`
-        // );
+        // ========================================
+        // CREATED
+        // ========================================
 
-        // console.log(
-        //   "Created date:",
-        //   createdTodo.date
-        // );
+        console.log(
+          `Created -> ${createdTodo.title}`
+        );
 
-        // Should print:
-        // 2026-08-17
+        console.log(
+          `Source: ${sourceDate} -> Today: ${today}`
+        );
 
       } catch (todoError) {
         console.error(
@@ -655,9 +790,13 @@ latestTodos.forEach(({ todo }) => {
     }
 
 
-    // console.log(
-    //   "========== AUTO TODO COMPLETED =========="
-    // );
+    // ============================================
+    // COMPLETED
+    // ============================================
+
+    console.log(
+      "========== AUTO TODO COMPLETED =========="
+    );
 
   } catch (error) {
     console.error(
@@ -666,9 +805,6 @@ latestTodos.forEach(({ todo }) => {
     );
   }
 };
-
-
-
 module.exports = {
   checkDelayedTasks,
   autoCreateDailyTodos,
