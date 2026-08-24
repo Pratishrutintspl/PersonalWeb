@@ -10,49 +10,82 @@ const middleware = require(
   "../../middleware/authmiddleware"
 );
 
-/*
- * Create manual expense
- */
+
+// ============================================
+// CREATE MANUAL EXPENSE
+// ============================================
+
 route.post(
   "/",
   middleware.verifyAccessToken,
   expenseController.createExpense
-); //done
+);
 
-/*
- * Get all expenses
- */
+
+// ============================================
+// GET ALL EXPENSES
+// ============================================
+
 route.get(
   "/",
   middleware.verifyAccessToken,
   expenseController.getExpenses
-); //done
+);
 
-route.put(
-  "/:id",
-  middleware.verifyAccessToken,
-  expenseController.updateExpense
-); //done
 
-/*
- * Soft delete manual expense
- */
-route.delete(
-  "/:id",
-  middleware.verifyAccessToken,
-  expenseController.deleteExpense
-);//done
+// ============================================
+// SPECIFIC GET ROUTES
+// MUST BE BEFORE /:id
+// ============================================
+
 // GET EXPENSE BY DATE
 route.get(
   "/by-date",
   middleware.verifyAccessToken,
   expenseController.getExpenseByDate
 );
- //done
+
+
+// GET EXPENSE CALENDAR COUNT
+route.get(
+  "/expense-calendar-count",
+  middleware.verifyAccessToken,
+  expenseController.getExpenseCountByDate
+);
+
+
+// ============================================
 // GET EXPENSE BY ID
+// DYNAMIC ROUTE SHOULD COME AFTER STATIC ROUTES
+// ============================================
+
 route.get(
   "/:id",
   middleware.verifyAccessToken,
   expenseController.getExpenseById
-); //done
+);
+
+
+// ============================================
+// UPDATE EXPENSE
+// ============================================
+
+route.put(
+  "/:id",
+  middleware.verifyAccessToken,
+  expenseController.updateExpense
+);
+
+
+// ============================================
+// DELETE EXPENSE
+// ============================================
+
+route.delete(
+  "/:id",
+  middleware.verifyAccessToken,
+  expenseController.deleteExpense
+);
+
+
 module.exports = route;

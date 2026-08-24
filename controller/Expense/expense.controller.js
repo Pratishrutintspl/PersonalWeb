@@ -102,7 +102,7 @@ const getExpenseByDate = async (
     const { date } = req.query;
 
     const result =
-      await expenseService.getExpenseByDate({
+      await expenseService.getExpenseByDatee({
         userId,
         date,
       });
@@ -152,7 +152,7 @@ const getExpenseById = async (req, res) => {
     );
 
     const expense =
-      await expenseService.getExpenseById({
+      await expenseService.getExpenseByIdd({
         userId,
         expenseId: req.params.id,
       });
@@ -255,6 +255,36 @@ const deleteExpense = async (req, res) => {
   }
 };
 
+const getExpenseCountByDate = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const result =
+      await expenseService.expenseCountByDate(
+        userId
+      );
+console.log(  "expenseCountByDate result:", result);
+    return response.SucessResponse(
+      res,
+      200,
+      message.expenseFetched,
+      result
+    );
+  } catch (error) {
+    console.log(
+      "expenseCountByDate error:",
+      error
+    );
+
+    return response.errorResponse(
+      res,
+      500,
+      error.message,
+      null
+    );
+  }
+};
+
 module.exports = {
   createExpense,
   getExpenses,
@@ -262,4 +292,5 @@ module.exports = {
   updateExpense,
   deleteExpense,
   getExpenseByDate,
+  getExpenseCountByDate,
 };

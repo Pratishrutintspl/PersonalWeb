@@ -1,18 +1,10 @@
 const mongoose = require("mongoose");
 
-const Expense = require(
-  "../../models/Expense/expense"
-);
+const Expense = require("../../models/Expense/expense");
 
-const ExpenseCategory = require(
-  "../../models/Expense/expenseCategory"
-);
+const ExpenseCategory = require("../../models/Expense/expenseCategory");
 
-
-const validateCategory = async (
-  userId,
-  categoryId
-) => {
+const validateCategory = async (userId, categoryId) => {
   if (!mongoose.Types.ObjectId.isValid(categoryId)) {
     const error = new Error("Invalid category id");
     error.statusCode = 400;
@@ -44,10 +36,7 @@ const validateCategory = async (
 /*
  * Create manual expense
  */
-const createExpense = async ({
-  userId,
-  data,
-}) => {
+const createExpense = async ({ userId, data }) => {
   const {
     categoryId,
     amount,
@@ -72,14 +61,8 @@ const createExpense = async ({
   // AMOUNT VALIDATION
   // =========================================
 
-  if (
-    amount === undefined ||
-    amount === null ||
-    Number(amount) <= 0
-  ) {
-    const error = new Error(
-      "Amount must be greater than 0",
-    );
+  if (amount === undefined || amount === null || Number(amount) <= 0) {
+    const error = new Error("Amount must be greater than 0");
 
     error.statusCode = 400;
     throw error;
@@ -92,9 +75,7 @@ const createExpense = async ({
   // =========================================
 
   if (!expenseDate) {
-    const error = new Error(
-      "Expense date is required",
-    );
+    const error = new Error("Expense date is required");
 
     error.statusCode = 400;
     throw error;
@@ -103,9 +84,7 @@ const createExpense = async ({
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
   if (!dateRegex.test(expenseDate)) {
-    const error = new Error(
-      "Expense date must be in YYYY-MM-DD format",
-    );
+    const error = new Error("Expense date must be in YYYY-MM-DD format");
 
     error.statusCode = 400;
     throw error;
@@ -116,9 +95,7 @@ const createExpense = async ({
   // =========================================
 
   if (!["MANUAL", "BANK"].includes(source)) {
-    const error = new Error(
-      "Invalid expense source",
-    );
+    const error = new Error("Invalid expense source");
 
     error.statusCode = 400;
     throw error;
@@ -128,13 +105,8 @@ const createExpense = async ({
   // BANK VALIDATION
   // =========================================
 
-  if (
-    source === "BANK" &&
-    !bankTransactionId
-  ) {
-    const error = new Error(
-      "Bank transaction is required",
-    );
+  if (source === "BANK" && !bankTransactionId) {
+    const error = new Error("Bank transaction is required");
 
     error.statusCode = 400;
     throw error;
@@ -144,10 +116,7 @@ const createExpense = async ({
   // CATEGORY CHECK
   // =========================================
 
-  await validateCategory(
-    userId,
-    categoryId,
-  );
+  await validateCategory(userId, categoryId);
 
   // =========================================
   // CREATE EXPENSE
@@ -164,22 +133,15 @@ const createExpense = async ({
     // Example: "2026-08-19"
     expenseDate,
 
-    description:
-      description?.trim() || "",
+    description: description?.trim() || "",
 
     source,
 
     // Only save for BANK
-    bankTransactionId:
-      source === "BANK"
-        ? bankTransactionId
-        : null,
+    bankTransactionId: source === "BANK" ? bankTransactionId : null,
 
     // Only save for MANUAL
-    paymentMethod:
-      source === "MANUAL"
-        ? paymentMethod || null
-        : null,
+    paymentMethod: source === "MANUAL" ? paymentMethod || null : null,
   });
 
   return expense;
@@ -196,17 +158,8 @@ const createExpense = async ({
  * page
  * limit
  */
-const getExpenses = async ({
-  userId,
-  query,
-}) => {
-  const {
-    categoryId,
-    source,
-    month,
-    page = 1,
-    limit = 20,
-  } = query;
+const getExpenses = async ({ userId, query }) => {
+  const { categoryId, source, month, page = 1, limit = 20 } = query;
 
   const filter = {
     userId,
@@ -218,14 +171,8 @@ const getExpenses = async ({
   // =========================================
 
   if (categoryId) {
-    if (
-      !mongoose.Types.ObjectId.isValid(
-        categoryId
-      )
-    ) {
-      const error = new Error(
-        "Invalid category id"
-      );
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      const error = new Error("Invalid category id");
 
       error.statusCode = 400;
       throw error;
@@ -239,17 +186,10 @@ const getExpenses = async ({
   // =========================================
 
   if (source) {
-    const normalizedSource =
-      source.toUpperCase();
+    const normalizedSource = source.toUpperCase();
 
-    if (
-      !["MANUAL", "BANK"].includes(
-        normalizedSource
-      )
-    ) {
-      const error = new Error(
-        "Invalid expense source"
-      );
+    if (!["MANUAL", "BANK"].includes(normalizedSource)) {
+      const error = new Error("Invalid expense source");
 
       error.statusCode = 400;
       throw error;
@@ -273,16 +213,11 @@ const getExpenses = async ({
   if (!selectedMonth) {
     const now = new Date();
 
-    const year =
-      now.getFullYear();
+    const year = now.getFullYear();
 
-    const currentMonth =
-      String(
-        now.getMonth() + 1
-      ).padStart(2, "0");
+    const currentMonth = String(now.getMonth() + 1).padStart(2, "0");
 
-    selectedMonth =
-      `${year}-${currentMonth}`;
+    selectedMonth = `${year}-${currentMonth}`;
   }
 
   // =========================================
@@ -290,32 +225,19 @@ const getExpenses = async ({
   // Expected: YYYY-MM
   // =========================================
 
-  const monthRegex =
-    /^\d{4}-\d{2}$/;
+  const monthRegex = /^\d{4}-\d{2}$/;
 
-  if (
-    !monthRegex.test(selectedMonth)
-  ) {
-    const error = new Error(
-      "Month must be in YYYY-MM format"
-    );
+  if (!monthRegex.test(selectedMonth)) {
+    const error = new Error("Month must be in YYYY-MM format");
 
     error.statusCode = 400;
     throw error;
   }
 
-  const [year, monthNumber] =
-    selectedMonth
-      .split("-")
-      .map(Number);
+  const [year, monthNumber] = selectedMonth.split("-").map(Number);
 
-  if (
-    monthNumber < 1 ||
-    monthNumber > 12
-  ) {
-    const error = new Error(
-      "Invalid month"
-    );
+  if (monthNumber < 1 || monthNumber > 12) {
+    const error = new Error("Invalid month");
 
     error.statusCode = 400;
     throw error;
@@ -325,20 +247,11 @@ const getExpenses = async ({
   // GET FIRST & LAST DAY OF MONTH
   // =========================================
 
-  const lastDay =
-    new Date(
-      year,
-      monthNumber,
-      0
-    ).getDate();
+  const lastDay = new Date(year, monthNumber, 0).getDate();
 
-  const startDate =
-    `${selectedMonth}-01`;
+  const startDate = `${selectedMonth}-01`;
 
-  const endDate =
-    `${selectedMonth}-${String(
-      lastDay
-    ).padStart(2, "0")}`;
+  const endDate = `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
 
   // =========================================
   // APPLY MONTH FILTER
@@ -349,78 +262,58 @@ const getExpenses = async ({
     $lte: endDate,
   };
 
-  console.log(
-    "Expense month filter:",
-    {
-      selectedMonth,
-      startDate,
-      endDate,
-    }
-  );
+  console.log("Expense month filter:", {
+    selectedMonth,
+    startDate,
+    endDate,
+  });
 
   // =========================================
   // PAGINATION
   // =========================================
 
-  const parsedPage = Math.max(
-    Number(page) || 1,
-    1
-  );
+  const parsedPage = Math.max(Number(page) || 1, 1);
 
-  const parsedLimit = Math.min(
-    Math.max(
-      Number(limit) || 20,
-      1
-    ),
-    100
-  );
+  const parsedLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
 
-  const skip =
-    (parsedPage - 1) *
-    parsedLimit;
+  const skip = (parsedPage - 1) * parsedLimit;
 
   // =========================================
   // FETCH EXPENSES
   // =========================================
 
-  const [expenses, total] =
-    await Promise.all([
-      Expense.find(filter)
-        .populate("categoryId")
-        .populate(
-          "bankTransactionId"
-        )
-        .sort({
-          expenseDate: -1,
-          createdAt: -1,
-        })
-        .skip(skip)
-        .limit(parsedLimit)
-        .lean(),
+  const [expenses, total] = await Promise.all([
+    Expense.find(filter)
+      .populate("categoryId")
+      .populate("bankTransactionId")
+      .sort({
+        expenseDate: -1,
+        createdAt: -1,
+      })
+      .skip(skip)
+      .limit(parsedLimit)
+      .lean(),
 
-      Expense.countDocuments(
-        filter
-      ),
-    ]);
+    Expense.countDocuments(filter),
+  ]);
 
   // =========================================
   // TOTAL EXPENSE AMOUNT
   // =========================================
 
-  const totalAmount =
-    await Expense.aggregate([
-      {
-        $match: filter,
-      },
-      {
-        $group: {
-          _id: null,
-          totalAmount: {
-            $sum: "$amount",
-          },
+  const totalAmount = await Expense.aggregate([
+    {
+      $match: filter,
+    },
+    {
+      $group: {
+        _id: null,
+        totalAmount: {
+          $sum: "$amount",
         },
       },
-    ]);
+    },
+  ]);
 
   return {
     month: selectedMonth,
@@ -429,9 +322,7 @@ const getExpenses = async ({
 
     endDate,
 
-    totalAmount:
-      totalAmount[0]
-        ?.totalAmount || 0,
+    totalAmount: totalAmount[0]?.totalAmount || 0,
 
     expenses,
 
@@ -440,78 +331,14 @@ const getExpenses = async ({
       limit: parsedLimit,
       total,
 
-      totalPages:
-        Math.ceil(
-          total / parsedLimit
-        ),
+      totalPages: Math.ceil(total / parsedLimit),
     },
   };
 };
 
-/*
- * Get expense by id
- */
-const getExpenseById = async ({
-  userId,
-  expenseId,
-}) => {
-  console.log("getExpenseById called with:", {
-    userId,
-    expenseId,
-  });
-  if (
-    !mongoose.Types.ObjectId.isValid(
-      expenseId
-    )
-  ) {
-    const error = new Error(
-      "Invalid expense id"
-    );
-
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const expense = await Expense.findOne({
-    _id: expenseId,
-    userId,
-    isDeleted: false,
-  })
-    .populate("categoryId")
-    .populate("bankTransactionId")
-    .lean();
-
-  if (!expense) {
-    const error = new Error(
-      "Expense not found"
-    );
-
-    error.statusCode = 404;
-    throw error;
-  }
-
-  return expense;
-};
-
-/*
- * Update manual expense.
- *
- * For now bank-generated expenses are
- * not edited through this endpoint.
- */
-const updateExpense = async ({
-  userId,
-  expenseId,
-  data,
-}) => {
-  if (
-    !mongoose.Types.ObjectId.isValid(
-      expenseId
-    )
-  ) {
-    const error = new Error(
-      "Invalid expense id"
-    );
+const updateExpense = async ({ userId, expenseId, data }) => {
+  if (!mongoose.Types.ObjectId.isValid(expenseId)) {
+    const error = new Error("Invalid expense id");
     error.statusCode = 400;
     throw error;
   }
@@ -523,9 +350,7 @@ const updateExpense = async ({
   });
 
   if (!expense) {
-    const error = new Error(
-      "Expense not found"
-    );
+    const error = new Error("Expense not found");
     error.statusCode = 404;
     throw error;
   }
@@ -536,60 +361,44 @@ const updateExpense = async ({
    */
   if (expense.source === "BANK") {
     const error = new Error(
-      "Bank expense cannot be edited through manual expense API"
+      "Bank expense cannot be edited through manual expense API",
     );
     error.statusCode = 400;
     throw error;
   }
 
   if (data.categoryId) {
-    await validateCategory(
-      userId,
-      data.categoryId
-    );
+    await validateCategory(userId, data.categoryId);
 
-    expense.categoryId =
-      data.categoryId;
+    expense.categoryId = data.categoryId;
   }
 
   if (data.amount !== undefined) {
     if (Number(data.amount) <= 0) {
-      const error = new Error(
-        "Amount must be greater than 0"
-      );
+      const error = new Error("Amount must be greater than 0");
       error.statusCode = 400;
       throw error;
     }
 
-    expense.amount =
-      Number(data.amount);
+    expense.amount = Number(data.amount);
   }
-if (data.expenseDate) {
+  if (data.expenseDate) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
-  const dateRegex =
-    /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(data.expenseDate)) {
+      const error = new Error("Expense date must be in YYYY-MM-DD format");
 
-  if (!dateRegex.test(data.expenseDate)) {
-    const error = new Error(
-      "Expense date must be in YYYY-MM-DD format"
-    );
+      error.statusCode = 400;
+      throw error;
+    }
 
-    error.statusCode = 400;
-    throw error;
+    expense.expenseDate = data.expenseDate;
   }
-
-  expense.expenseDate =
-    data.expenseDate;
-}
-if (data.paymentMethod !== undefined) {
-  expense.paymentMethod =
-    data.paymentMethod || null;
-}
-  if (
-    data.description !== undefined
-  ) {
-    expense.description =
-      data.description?.trim() || "";
+  if (data.paymentMethod !== undefined) {
+    expense.paymentMethod = data.paymentMethod || null;
+  }
+  if (data.description !== undefined) {
+    expense.description = data.description?.trim() || "";
   }
 
   await expense.save();
@@ -597,21 +406,9 @@ if (data.paymentMethod !== undefined) {
   return expense;
 };
 
-/*
- * Soft delete manual expense
- */
-const deleteExpense = async ({
-  userId,
-  expenseId,
-}) => {
-  if (
-    !mongoose.Types.ObjectId.isValid(
-      expenseId
-    )
-  ) {
-    const error = new Error(
-      "Invalid expense id"
-    );
+const deleteExpense = async ({ userId, expenseId }) => {
+  if (!mongoose.Types.ObjectId.isValid(expenseId)) {
+    const error = new Error("Invalid expense id");
     error.statusCode = 400;
     throw error;
   }
@@ -623,16 +420,14 @@ const deleteExpense = async ({
   });
 
   if (!expense) {
-    const error = new Error(
-      "Expense not found"
-    );
+    const error = new Error("Expense not found");
     error.statusCode = 404;
     throw error;
   }
 
   if (expense.source === "BANK") {
     const error = new Error(
-      "Bank expense cannot be deleted through manual expense API"
+      "Bank expense cannot be deleted through manual expense API",
     );
     error.statusCode = 400;
     throw error;
@@ -645,18 +440,13 @@ const deleteExpense = async ({
 
   return expense;
 };
-const getExpenseByDate = async ({
-  userId,
-  date,
-}) => {
+const getExpenseByDatee = async ({ userId, date }) => {
   // =========================================
   // DATE REQUIRED
   // =========================================
 
   if (!date) {
-    const error = new Error(
-      "Expense date is required"
-    );
+    const error = new Error("Expense date is required");
 
     error.statusCode = 400;
     throw error;
@@ -668,13 +458,10 @@ const getExpenseByDate = async ({
   // Example: 2026-08-19
   // =========================================
 
-  const dateRegex =
-    /^\d{4}-\d{2}-\d{2}$/;
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
   if (!dateRegex.test(date)) {
-    const error = new Error(
-      "Date must be in YYYY-MM-DD format"
-    );
+    const error = new Error("Date must be in YYYY-MM-DD format");
 
     error.statusCode = 400;
     throw error;
@@ -701,9 +488,8 @@ const getExpenseByDate = async ({
   // =========================================
 
   const totalAmount = expenses.reduce(
-    (sum, expense) =>
-      sum + Number(expense.amount || 0),
-    0
+    (sum, expense) => sum + Number(expense.amount || 0),
+    0,
   );
 
   return {
@@ -713,11 +499,163 @@ const getExpenseByDate = async ({
     expenses,
   };
 };
+
+const expenseCountByDate = async (userId) => {
+  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+    throw new Error("Invalid user");
+  }
+
+  const objectId = new mongoose.Types.ObjectId(userId);
+
+  const result = await Expense.aggregate([
+    // ============================================
+    // USER EXPENSES ONLY
+    // ============================================
+    {
+      $match: {
+        userId: objectId,
+        isDeleted: false,
+      },
+    },
+
+    // ============================================
+    // NORMALIZE expenseDate
+    // ============================================
+    {
+      $addFields: {
+        normalizedDate: {
+          $switch: {
+            branches: [
+              // MongoDB Date
+              {
+                case: {
+                  $eq: [
+                    {
+                      $type: "$expenseDate",
+                    },
+                    "date",
+                  ],
+                },
+
+                then: {
+                  $dateToString: {
+                    format: "%Y-%m-%d",
+                    date: "$expenseDate",
+                    timezone: "Asia/Kolkata",
+                  },
+                },
+              },
+
+              // String date
+              {
+                case: {
+                  $eq: [
+                    {
+                      $type: "$expenseDate",
+                    },
+                    "string",
+                  ],
+                },
+
+                then: {
+                  $substrBytes: ["$expenseDate", 0, 10],
+                },
+              },
+            ],
+
+            default: null,
+          },
+        },
+      },
+    },
+
+    // ============================================
+    // REMOVE INVALID DATES
+    // ============================================
+    {
+      $match: {
+        normalizedDate: {
+          $ne: null,
+        },
+      },
+    },
+
+    // ============================================
+    // COUNT BY DATE
+    // ============================================
+    {
+      $group: {
+        _id: "$normalizedDate",
+
+        count: {
+          $sum: 1,
+        },
+      },
+    },
+
+    // ============================================
+    // RESPONSE
+    // ============================================
+    {
+      $project: {
+        _id: 0,
+
+        date: "$_id",
+
+        count: 1,
+      },
+    },
+
+    // ============================================
+    // DATE ASCENDING
+    // ============================================
+    {
+      $sort: {
+        date: 1,
+      },
+    },
+  ]);
+
+  console.log("Expense calendar count:", result);
+
+  return result;
+};
+const getExpenseByIdd = async ({ userId, expenseId }) => {
+  console.log("getExpenseById called with:", {
+    userId,
+    expenseId,
+  });
+  if (!mongoose.Types.ObjectId.isValid(expenseId)) {
+    const error = new Error("Invalid expense id");
+
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const expense = await Expense.findOne({
+    _id: expenseId,
+    userId,
+    isDeleted: false,
+  })
+    .populate("categoryId")
+    .populate("bankTransactionId")
+    .lean();
+
+  if (!expense) {
+    const error = new Error("Expense not found");
+
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return expense;
+};
 module.exports = {
   createExpense,
   getExpenses,
-  getExpenseById,
+  getExpenseByIdd,
   updateExpense,
   deleteExpense,
-  getExpenseByDate
+  getExpenseByDatee,
+  expenseCountByDate,
 };
