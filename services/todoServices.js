@@ -728,6 +728,67 @@ const getDashboard = async (
     completionRate,
   };
 };
+const checkDelayedTaskss = async (userId, date) => {
+  try {
+    console.log("Checking delayed tasks");
+    console.log("User ID:", userId);
+    console.log("Date:", date);
+
+
+    const delayedTasks = await todoModel.find({
+      userId: userId,
+
+      date: date,   // exact match
+
+      status: "PENDING",
+
+      isDelayed: true,
+
+      // $or: [
+      //   {
+      //     delayReason: {
+      //       $exists: false
+      //     }
+      //   },
+      //   {
+      //     delayReason: null
+      //   },
+      //   {
+      //     delayReason: ""
+      //   }
+      // ]
+    })
+    // .sort({
+    //   scheduledTime: 1
+    // })
+    // .lean();
+
+const test = await todoModel.findOne({
+  userId:"6a3a7a2b0c3eb5dc7c4319a6"
+});
+
+console.log(test.date);
+console.log(typeof test.date);
+    console.log(
+      "Delayed Tasks Found:",
+      delayedTasks.length
+    );
+
+    console.log(delayedTasks);
+
+
+    return delayedTasks;
+
+
+  } catch(error) {
+
+    console.error(error);
+    throw error;
+
+  }
+};
+
+
 
 module.exports = {
   createTodo,
@@ -737,4 +798,5 @@ module.exports = {
   todoList,
   todoCountByDate,
   getDashboard,
+  checkDelayedTaskss
 };

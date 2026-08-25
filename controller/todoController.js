@@ -165,7 +165,25 @@ const getDashboard = async (req, res) => {
     return response.errorResponse(res, 500, error.message, null);
   }
 };
+const checkDelayedTasks = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+        const { date } = req.params;
 
+    const dashboard = await todoService.checkDelayedTaskss(userId, date);
+
+    return response.SucessResponse(
+      res,
+      200,
+      message.dashboardFetched,
+      dashboard,
+    );
+  } catch (error) {
+    console.log("Dashboard Error =", error);
+
+    return response.errorResponse(res, 500, error.message, null);
+  }
+};
 module.exports = {
   createTodo,
   todoListDate,
@@ -174,4 +192,5 @@ module.exports = {
   getTodoCountByDate,
   todoList,
   getDashboard,
+  checkDelayedTasks
 };
