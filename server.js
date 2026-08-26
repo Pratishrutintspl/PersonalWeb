@@ -10,17 +10,9 @@ const passport = require("passport");
 
 require("./config/passport");
 
+app.use(passport.initialize());
 
-app.use(
-passport.initialize()
-);
-
-
-
-app.use(
-"/auth",
-require("./routes/googleAuthRoutes")
-);
+app.use("/auth", require("./routes/googleAuthRoutes"));
 app.get("/", (req, res) => {
   res.send("Expense tracker running");
 });
