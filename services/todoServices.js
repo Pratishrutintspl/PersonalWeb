@@ -734,41 +734,34 @@ const checkDelayedTaskss = async (userId, date) => {
     console.log("User ID:", userId);
     console.log("Date:", date);
 
+    // Current time in HH:mm format
+    const currentTime = new Date()
+      .toTimeString()
+      .slice(0, 5);
+
+    console.log("Current Time:", currentTime);
+
 
     const delayedTasks = await todoModel.find({
       userId: userId,
 
-      date: date,   // exact match
+      date: date,
 
       status: "PENDING",
 
-      isDelayed: true,
+      isDeleted: false,
 
-      // $or: [
-      //   {
-      //     delayReason: {
-      //       $exists: false
-      //     }
-      //   },
-      //   {
-      //     delayReason: null
-      //   },
-      //   {
-      //     delayReason: ""
-      //   }
-      // ]
+      // Task time already crossed
+      scheduledTime: {
+        $lt: currentTime
+      }
     })
-    // .sort({
-    //   scheduledTime: 1
-    // })
-    // .lean();
+    .sort({
+      scheduledTime: 1
+    })
+    .lean();
 
-const test = await todoModel.findOne({
-  userId:"6a3a7a2b0c3eb5dc7c4319a6"
-});
 
-console.log(test.date);
-console.log(typeof test.date);
     console.log(
       "Delayed Tasks Found:",
       delayedTasks.length
@@ -782,7 +775,8 @@ console.log(typeof test.date);
 
   } catch(error) {
 
-    console.error(error);
+    console.error("Delayed Task Error:", error);
+
     throw error;
 
   }

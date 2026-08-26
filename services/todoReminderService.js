@@ -9,216 +9,306 @@ const checkDelayedTasks = async () => {
 
     console.log("====================================");
     console.log("Current UTC:", now.toISOString());
-
     console.log(
       "Current IST:",
       now.toLocaleString("en-IN", {
         timeZone: "Asia/Kolkata",
-      }),
+      })
     );
-
     console.log("====================================");
+
 
     const todos = await Todo.find({
       status: "PENDING",
       isDeleted: false,
+      notificationSent: false,
     });
+
 
     console.log("Pending Todos Found =", todos.length);
 
+
     const delayedTasks = [];
 
+
     for (const todo of todos) {
+
       try {
+
         console.log("\n====================================");
-        // console.log("Todo ID =", todo._id);
-        // console.log("Title =", todo.title);
-        // console.log("Stored Date =", todo.date);
-        // console.log("Scheduled Time =", todo.scheduledTime);
+        console.log("Checking Task:", todo.title);
+
 
         if (!todo.scheduledTime) {
           console.log("No scheduledTime found");
           continue;
         }
 
-        // -----------------------------------------
+
+        // ---------------------------------
         // Parse scheduled time
-        // -----------------------------------------
+        // ---------------------------------
 
-        const [hours, minutes] = todo.scheduledTime.split(":").map(Number);
+        const [hours, minutes] = todo.scheduledTime
+          .split(":")
+          .map(Number);
 
-        if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-          console.log(`Invalid scheduledTime: ${todo.scheduledTime}`);
+
+        if (
+          Number.isNaN(hours) ||
+          Number.isNaN(minutes)
+        ) {
+          console.log(
+            "Invalid scheduledTime:",
+            todo.scheduledTime
+          );
           continue;
         }
 
-        // -----------------------------------------
-        // IMPORTANT FIX
-        //
-        // todo.date is stored as 00:00 IST.
-        //
-        // Example:
-        // MongoDB:
-        // 2026-08-16T18:30:00.000Z
-        //
-        // IST:
-        // 17 Aug 2026 00:00
-        //
-        // Simply add scheduled hours/minutes
-        // to that timestamp.
-        // -----------------------------------------
 
-        const baseDate = new Date(todo.date);
 
-        const scheduledMilliseconds = (hours * 60 + minutes) * 60 * 1000;
+        // ---------------------------------
+        // Convert stored date + time to IST
+        // ---------------------------------
+
+        const [year, month, day] = todo.date
+          .split("-")
+          .map(Number);
+
+
+        /*
+          Mongo stores internally in UTC.
+
+          Example:
+          date = 2026-08-26
+          time = 06:00 IST
+
+          Convert:
+          06:00 IST
+          =
+          00:30 UTC
+        */
+
 
         const taskDateTime = new Date(
-          baseDate.getTime() + scheduledMilliseconds,
+          Date.UTC(
+            year,
+            month - 1,
+            day,
+            hours - 5,
+            minutes - 30
+          )
         );
 
-        // console.log(
-        //   "Task DateTime UTC =",
-        //   taskDateTime.toISOString()
-        // );
 
-        // console.log(
-        //   "Task DateTime IST =",
-        //   taskDateTime.toLocaleString("en-IN", {
-        //     timeZone: "Asia/Kolkata",
-        //   })
-        // );
 
-        // console.log(
-        //   "Current UTC =",
-        //   now.toISOString()
-        // );
+        console.log(
+          "Task Time IST:",
+          taskDateTime.toLocaleString(
+            "en-IN",
+            {
+              timeZone: "Asia/Kolkata",
+            }
+          )
+        );
 
-        // console.log(
-        //   "Current IST =",
-        //   now.toLocaleString("en-IN", {
-        //     timeZone: "Asia/Kolkata",
-        //   })
-        // );
 
-        // -----------------------------------------
-        // Check delayed
-        // -----------------------------------------
+        console.log(
+          "Current Time IST:",
+          now.toLocaleString(
+            "en-IN",
+            {
+              timeZone: "Asia/Kolkata",
+            }
+          )
+        );
 
-        const isDelayed = taskDateTime.getTime() <= now.getTime();
 
-        console.log("Is Delayed =", isDelayed);
 
-        // Not delayed yet
+        // ---------------------------------
+        // Delay buffer
+        // ---------------------------------
+
+        const delayBuffer = 5 * 60 * 1000;
+
+
+        const isDelayed =
+          taskDateTime.getTime() + delayBuffer
+          <= now.getTime();
+
+
+
+        console.log(
+          "Is Delayed:",
+          isDelayed
+        );
+
+
+
         if (!isDelayed) {
-          console.log(`Not delayed yet -> ${todo.title}`);
+
+          console.log(
+            "Not delayed yet:",
+            todo.title
+          );
+
           continue;
         }
 
-        // Already notified
-        if (todo.notificationSent) {
-          console.log(`Notification already sent -> ${todo.title}`);
+
+
+
+        // ---------------------------------
+        // Get User
+        // ---------------------------------
+
+        const user = await User.findById(
+          todo.userId
+        );
+
+
+        if (!user) {
+
+          console.log(
+            "User not found:",
+            todo.userId
+          );
+
           continue;
         }
 
-        console.log(`Delayed Task Found -> ${todo.title}`);
 
-        const user = await User.findById(todo.userId);
 
-        // -----------------------------------------
-        // SEND EMAIL
-        // -----------------------------------------
 
-        if (user?.email) {
+        // ---------------------------------
+        // Send Email
+        // ---------------------------------
+
+        if (user.email) {
+
           try {
-            console.log("\n================ EMAIL TRIGGER =================");
-
-            console.log("Trigger UTC:", new Date().toISOString());
 
             console.log(
-              "Trigger IST:",
-              new Date().toLocaleString("en-IN", {
-                timeZone: "Asia/Kolkata",
-              }),
+              "Sending delay email:",
+              user.email
             );
 
-            console.log("Todo ID:", todo._id);
-            console.log("User:", user.name);
-            console.log("Email:", user.email);
-            console.log("Title:", todo.title);
 
-            console.log("Scheduled Time:", todo.scheduledTime);
+            await emailService.sendDelayTaskEmail(
+              user.email,
+              user.name,
+              todo
+            );
+
 
             console.log(
-              "Task DateTime IST:",
-              taskDateTime.toLocaleString("en-IN", {
-                timeZone: "Asia/Kolkata",
-              }),
+              "Email sent successfully"
             );
 
-            const start = Date.now();
 
-            await emailService.sendDelayTaskEmail(user.email, user.name, todo);
+          } catch(emailError) {
 
-            const end = Date.now();
 
-            console.log("✅ Email Sent Successfully");
+            console.log(
+              "Email Error:",
+              emailError.message
+            );
 
-            console.log(`Email Sending Time: ${end - start} ms`);
 
-            console.log("===============================================\n");
-          } catch (err) {
-            console.log("\n================ EMAIL ERROR =================");
-
-            console.log("Todo ID:", todo._id);
-
-            console.log("Email:", user.email);
-
-            console.log("Message:", err.message);
-
-            console.log("Stack:", err.stack);
-
-            console.log("==============================================\n");
-
-            // If email fails, don't mark notificationSent=true
+            // Don't update notification status
             continue;
+
           }
+
         }
 
-        // -----------------------------------------
-        // UPDATE TODO
-        // -----------------------------------------
 
-        await Todo.findByIdAndUpdate(todo._id, {
-          $set: {
-            isDelayed: true,
-            notificationSent: true,
-          },
-        });
+
+
+        // ---------------------------------
+        // Update Todo
+        // ---------------------------------
+
+        await Todo.findByIdAndUpdate(
+          todo._id,
+          {
+            $set: {
+              isDelayed: true,
+              notificationSent: true,
+              updatedAt: new Date()
+            }
+          }
+        );
+
+
 
         delayedTasks.push({
+
           todoId: todo._id,
+
           title: todo.title,
-          scheduledTime: todo.scheduledTime,
-          taskDateTime: taskDateTime.toISOString(),
-          email: user?.email,
+
+          scheduledTime:
+            todo.scheduledTime,
+
+          taskDateTime:
+            taskDateTime.toISOString(),
+
+          email:
+            user.email
+
         });
-      } catch (todoError) {
-        console.error(`Error checking todo ${todo._id}:`, todoError);
+
+
+
+        console.log(
+          "Marked delayed:",
+          todo.title
+        );
+
+
+
+      } catch(todoError) {
+
+
+        console.error(
+          "Todo processing error:",
+          todo._id,
+          todoError.message
+        );
+
       }
+
     }
 
+
+
     console.log("\n====================================");
-    console.log("Delayed Tasks =", delayedTasks);
+    console.log(
+      "Delayed Tasks:",
+      delayedTasks
+    );
     console.log("====================================");
 
+
+
     return delayedTasks;
-  } catch (error) {
-    console.error("CHECK DELAYED TASKS ERROR:", error);
+
+
+
+  } catch(error) {
+
+
+    console.error(
+      "CHECK DELAYED TASKS ERROR:",
+      error
+    );
+
 
     throw error;
+
   }
 };
-
 const IST_OFFSET = 5.5 * 60 * 60 * 1000;
 
 // ============================================
