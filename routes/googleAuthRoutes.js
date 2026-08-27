@@ -17,13 +17,34 @@ router.get(
 // Google Callback
 
 router.get(
-  "/google/callback",
+ "/google/callback",
+ (req,res,next)=>{
 
-  passport.authenticate("google", {
-    session: false,
-  }),
+ passport.authenticate(
+ "google",
+ {
+   session:false
+ },
+ (err,user,info)=>{
 
-  googleAuthController.googleCallback,
+   if(err){
+     console.log("Passport error:",err);
+     return res.status(500).json(err);
+   }
+
+   if(!user){
+     console.log("No user:",info);
+     return res.status(401).json(info);
+   }
+
+   req.user=user;
+   next();
+
+ }
+ )(req,res,next);
+
+ },
+ googleAuthController.googleCallback
 );
 
 module.exports = router;

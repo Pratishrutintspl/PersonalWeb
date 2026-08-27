@@ -9,6 +9,7 @@ const message =
 require("../constants/message");
 
 const googleCallback = async (req, res) => {
+  console.log("ddddddd")
   try {
 
     const googleUser = {
