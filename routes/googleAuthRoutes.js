@@ -8,12 +8,11 @@ const googleAuthController = require("../controller/googleAuthController");
 
 router.get(
   "/google",
-
   passport.authenticate("google", {
     scope: ["profile", "email"],
-  }),
+    prompt: "select_account"
+  })
 );
-
 // Google Callback
 
 router.get(
