@@ -21,11 +21,9 @@ const googleLoginUser = async (googleData) => {
   } = googleData;
 
 
-
   let user = await User.findOne({
     email
   });
-
 
 
   // Create new google user
@@ -47,6 +45,19 @@ const googleLoginUser = async (googleData) => {
 
     });
 
+  } 
+  // Existing user (email/password user) login with Google
+  else {
+
+    user.googleId = googleId;
+
+    user.profileImage = profileImage;
+
+    user.isGoogleLogin = true;
+
+    // Keep existing password if user already has one
+    await user.save();
+
   }
 
 
@@ -61,9 +72,7 @@ const googleLoginUser = async (googleData) => {
 
 
 
-  user.refreshToken =
-    refreshToken;
-
+  user.refreshToken = refreshToken;
 
 
   await user.save();
@@ -96,7 +105,6 @@ const googleLoginUser = async (googleData) => {
   };
 
 };
-
 
 
 module.exports = {
